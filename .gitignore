@@ -18,4 +18,12 @@ Thumbs.db
 save.json
 *.log
 
+# Environment variables
 .env
+
+# Kotlin DSL (Gradle récent crée ce dossier)
+.kotlin/
+
+# Java
+*.class
+local.properties
