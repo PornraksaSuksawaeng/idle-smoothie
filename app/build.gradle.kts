@@ -46,3 +46,16 @@ tasks.jacocoTestReport {
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
 }
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        html.required = true
+        xml.required = true
+    }
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) { exclude("com/idlesmoothie/view/**", "com/idlesmoothie/Launcher*") }
+        })
+    )
+}
