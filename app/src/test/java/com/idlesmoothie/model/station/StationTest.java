@@ -11,12 +11,15 @@ class StationTest {
 
     private static final double DELTA = 1e-9;
 
-    /** Minimal station that only counts its finished cycles. */
+    /** Minimal station whose round lasts one second and that records the time it worked. */
     private static class FakeStation extends Station {
+
+        private static final double ROUND_DURATION = 1;
 
         private final double speed;
         private final double capacity;
-        private int cycles;
+        private double workedTime;
+        private double roundTime;
 
         FakeStation(double speed, double capacity) {
             this.speed = speed;
@@ -34,17 +37,22 @@ class StationTest {
         }
 
         @Override
-        protected void performCycle() {
-            cycles++;
-        }
-
-        @Override
         protected StationStats baseStats() {
             return new StationStats(speed, capacity);
         }
 
-        int getCycles() {
-            return cycles;
+        @Override
+        protected void work(double dt) {
+            workedTime += dt;
+            roundTime += dt;
+            if (roundTime >= ROUND_DURATION) {
+                roundTime = 0;
+                endRound();
+            }
+        }
+
+        double getWorkedTime() {
+            return workedTime;
         }
     }
 
@@ -62,103 +70,90 @@ class StationTest {
     }
 
     @Test
-    void newStationStartsIdleAtLevelOne() {
+    void newStationIsIdleAtLevelOne() {
         FakeStation station = new FakeStation(1, 10);
 
         assertEquals(1, station.getLevel());
-        assertEquals(0, station.getProgress(), DELTA);
         assertFalse(station.isRunning());
         assertFalse(station.isAutomated());
     }
 
     @Test
-    void manualStationDoesNothingWithoutTap() {
+    void manualStationDoesNotWorkWithoutTap() {
         FakeStation station = new FakeStation(1, 10);
 
         station.update(5);
 
-        assertEquals(0, station.getCycles());
-        assertEquals(0, station.getProgress(), DELTA);
+        assertEquals(0, station.getWorkedTime(), DELTA);
     }
 
     @Test
-    void tapRunsOneFullCycleThenStops() {
+    void tapStartsARound() {
         FakeStation station = new FakeStation(1, 10);
 
         station.start();
-        station.update(1);
 
-        assertEquals(1, station.getCycles());
-        assertEquals(0, station.getProgress(), DELTA);
-        assertFalse(station.isRunning());
-    }
-
-    @Test
-    void tapCycleProgressesOverTime() {
-        FakeStation station = new FakeStation(1, 10);
-
-        station.start();
-        station.update(0.5);
-
-        assertEquals(0, station.getCycles());
-        assertEquals(0.5, station.getProgress(), DELTA);
         assertTrue(station.isRunning());
     }
 
     @Test
-    void manualStationRunsOnlyOneCycleEvenWithLongUpdate() {
+    void tappedStationWorksForElapsedTime() {
         FakeStation station = new FakeStation(1, 10);
-
-        station.start();
-        station.update(10);
-
-        assertEquals(1, station.getCycles());
-        assertEquals(0, station.getProgress(), DELTA);
-    }
-
-    @Test
-    void tapDuringCycleDoesNotRestartIt() {
-        FakeStation station = new FakeStation(1, 10);
-        station.start();
-        station.update(0.5);
-
-        station.start();
-
-        assertEquals(0.5, station.getProgress(), DELTA);
-        assertTrue(station.isRunning());
-    }
-
-    @Test
-    void newTapAfterCycleStartsAnotherOne() {
-        FakeStation station = new FakeStation(1, 10);
-        station.start();
-        station.update(1);
-
-        station.start();
-        station.update(1);
-
-        assertEquals(2, station.getCycles());
-    }
-
-    @Test
-    void speedScalesProgress() {
-        FakeStation station = new FakeStation(2, 10);
 
         station.start();
         station.update(0.25);
+        station.update(0.25);
 
-        assertEquals(0.5, station.getProgress(), DELTA);
+        assertEquals(0.5, station.getWorkedTime(), DELTA);
+        assertTrue(station.isRunning());
     }
 
     @Test
-    void zeroElapsedTimeChangesNothing() {
+    void stationStopsWorkingOnceRoundIsDone() {
+        FakeStation station = new FakeStation(1, 10);
+        station.start();
+
+        station.update(1);
+        station.update(1);
+
+        assertFalse(station.isRunning());
+        assertEquals(1, station.getWorkedTime(), DELTA);
+    }
+
+    @Test
+    void tapDuringRoundKeepsItRunning() {
+        FakeStation station = new FakeStation(1, 10);
+        station.start();
+        station.update(0.5);
+
+        station.start();
+        station.update(0.5);
+
+        assertFalse(station.isRunning());
+        assertEquals(1, station.getWorkedTime(), DELTA);
+    }
+
+    @Test
+    void newTapAfterRoundStartsAnotherOne() {
+        FakeStation station = new FakeStation(1, 10);
+        station.start();
+        station.update(1);
+
+        station.start();
+        station.update(1);
+
+        assertEquals(2, station.getWorkedTime(), DELTA);
+    }
+
+    @Test
+    void zeroElapsedTimeIsAllowed() {
         FakeStation station = new FakeStation(1, 10);
         station.start();
 
         station.update(0);
 
-        assertEquals(0, station.getProgress(), DELTA);
-        assertEquals(0, station.getCycles());
+        assertEquals(0, station.getWorkedTime(), DELTA);
+        assertTrue(station.isRunning());
     }
 
     @Test
@@ -169,34 +164,23 @@ class StationTest {
     }
 
     @Test
-    void automatedStationRunsWithoutTap() {
+    void automatedStationWorksWithoutTap() {
+        AutomatedStation station = new AutomatedStation(1, 10);
+
+        station.update(0.5);
+
+        assertEquals(0.5, station.getWorkedTime(), DELTA);
+    }
+
+    @Test
+    void automatedStationKeepsWorkingAfterRoundEnds() {
         AutomatedStation station = new AutomatedStation(1, 10);
 
         station.update(1);
+        station.update(1);
+        station.update(1);
 
-        assertEquals(1, station.getCycles());
-    }
-
-    @Test
-    void automatedStationRunsSeveralCyclesAndKeepsLeftover() {
-        AutomatedStation station = new AutomatedStation(1, 10);
-
-        station.update(2.5);
-
-        assertEquals(2, station.getCycles());
-        assertEquals(0.5, station.getProgress(), DELTA);
-    }
-
-    @Test
-    void automatedStationAccumulatesSmallUpdates() {
-        AutomatedStation station = new AutomatedStation(1, 10);
-
-        station.update(0.4);
-        station.update(0.4);
-        station.update(0.4);
-
-        assertEquals(1, station.getCycles());
-        assertEquals(0.2, station.getProgress(), DELTA);
+        assertEquals(3, station.getWorkedTime(), DELTA);
     }
 
     @Test
