@@ -2,22 +2,20 @@ package com.idlesmoothie.model.station;
 
 /**
  * Base class of every station of the mine: floors, elevator and sell station.
- * Implements the Template Method pattern: {@link #update(double)} decides when a cycle
- * ends, and each subclass decides what happens at the end of a cycle in {@link #performCycle()}.
- * Without a manager, a station runs one cycle per tap; with a manager, it runs on its own.
+ * Implements the Template Method pattern: {@link #update(double)} decides whether the station
+ * works, and each subclass decides how it works in {@link #work(double)}.
+ * Without a manager, a tap starts one round of work; with a manager, the station works on its own.
  */
 public abstract class Station {
 
     private int level;
-    private double progress;
     private boolean running;
 
     /**
-     * Creates a station at level 1, idle and with an empty progress bar.
+     * Creates an idle station at level 1.
      */
     protected Station() {
         this.level = 1;
-        this.progress = 0;
     }
 
     /**
@@ -31,12 +29,6 @@ public abstract class Station {
     public abstract double getUpgradeCost();
 
     /**
-     * Applies the result of a finished cycle, such as moving smoothie from one storage to another.
-     * Called by {@link #update(double)} only, never directly.
-     */
-    protected abstract void performCycle();
-
-    /**
      * Returns the raw stats for the current level, before any bonus.
      * Use {@link #getStats()} everywhere else.
      *
@@ -45,8 +37,17 @@ public abstract class Station {
     protected abstract StationStats baseStats();
 
     /**
-     * Starts one cycle when the player taps the station.
-     * Does nothing if a cycle is already running or if the station is automated.
+     * Does the station's job for the elapsed time.
+     * Called by {@link #update(double)} only, and only while the station is working.
+     * A subclass calls {@link #endRound()} once the work started by a tap is done.
+     *
+     * @param dt elapsed time since the last update, in seconds
+     */
+    protected abstract void work(double dt);
+
+    /**
+     * Starts one round of work when the player taps the station.
+     * Does nothing if a round is already running or if the station is automated.
      */
     public void start() {
         if (!running && !isAutomated()) {
@@ -55,7 +56,7 @@ public abstract class Station {
     }
 
     /**
-     * @return {@code true} if the station runs cycles on its own, without taps
+     * @return {@code true} if the station works on its own, without taps
      */
     public boolean isAutomated() {
         // TODO: return manager != null once the manager package exists
@@ -63,9 +64,7 @@ public abstract class Station {
     }
 
     /**
-     * Advances the station by the elapsed time and runs every cycle finished meanwhile.
-     * A manual station stops after one cycle; an automated one keeps the leftover progress
-     * so that no production is lost between frames.
+     * Lets the station work for the elapsed time if it was tapped or is automated.
      *
      * @param dt elapsed time since the last update, in seconds
      * @throws IllegalArgumentException if {@code dt} is negative
@@ -77,16 +76,7 @@ public abstract class Station {
         if (!running && !isAutomated()) {
             return;
         }
-        progress += dt * getStats().getSpeed();
-        while (progress >= 1) {
-            performCycle();
-            progress -= 1;
-            if (!isAutomated()) {
-                running = false;
-                progress = 0;
-                break;
-            }
-        }
+        work(dt);
     }
 
     /**
@@ -126,18 +116,18 @@ public abstract class Station {
     public int getLevel() {
         return level;
     }
-
+    
     /**
-     * @return the progress of the current cycle, between 0 and 1
-     */
-    public double getProgress() {
-        return progress;
-    }
-
-    /**
-     * @return {@code true} if a cycle started by a tap is in progress
+     * @return {@code true} if a round started by a tap is in progress
      */
     public boolean isRunning() {
         return running;
+    }
+
+    /**
+     * Ends the round started by a tap. Called by a subclass when its work is done.
+     */
+    protected final void endRound() {
+        running = false;
     }
 }
