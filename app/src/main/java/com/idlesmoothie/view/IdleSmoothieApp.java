@@ -2,7 +2,6 @@ package com.idlesmoothie.view;
 
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
@@ -18,9 +17,12 @@ public class IdleSmoothieApp extends Application {
      */
     @Override
     public void start(Stage stage) {
-        StackPane root = new StackPane(new Label("Idle Smoothie"));
+        MineView mineView = new MineView(540, 960, 10, 4);
+        mineView.render();
+        StackPane root = new StackPane(mineView.getCanvas());
         stage.setTitle("Idle Smoothie");
         stage.setScene(new Scene(root, 540, 960));
+        stage.setResizable(false);
         stage.show();
     }
 }
