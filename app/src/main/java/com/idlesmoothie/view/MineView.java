@@ -4,6 +4,7 @@ import com.idlesmoothie.model.resource.Fruit;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
+import javafx.scene.image.Image;
 
 /**
  * Draws the underground mine on a canvas and lets the player scroll it vertically.
@@ -18,7 +19,6 @@ public class MineView {
     private static final double SHAFT_WIDTH = 80;
     private static final double ROOM_MARGIN = 20;
     private static final int FLOORS_PER_FRUIT = 3;   // TODO read from BalanceConfig
-    private static final Color SKY_COLOR = Color.web("#8FD3FF");
     private static final Color SHAFT_COLOR = Color.web("#3B2A1E");
     private static final Color LOCKED_COLOR = Color.web("#7A7A7A");
     private static final Color[] SOIL_COLORS = {
@@ -31,6 +31,7 @@ public class MineView {
 
     private final Canvas canvas;
     private final GraphicsContext gc;
+    private final Image surfaceImage;
     private final int maxFloors;
     private int unlockedFloors;   // TODO replace with Mine once model.station exists
     private double scrollY;
@@ -49,6 +50,8 @@ public class MineView {
         this.maxFloors = maxFloors;
         this.unlockedFloors = unlockedFloors;
         canvas.setOnScroll(e -> onScroll(e.getDeltaY()));
+
+        this.surfaceImage = new Image(getClass().getResourceAsStream("/images/mine/surface.png"));
     }
 
     /**
@@ -91,8 +94,7 @@ public class MineView {
     }
 
     private void drawSurface() {
-        gc.setFill(SKY_COLOR);
-        gc.fillRect(0, -scrollY, canvas.getWidth(), SURFACE_HEIGHT);
+        gc.drawImage(surfaceImage, 0, -scrollY, canvas.getWidth(), SURFACE_HEIGHT);
     }
 
     private void drawSoil(int index) {
