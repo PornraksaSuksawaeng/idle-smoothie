@@ -1,6 +1,7 @@
 package com.idlesmoothie.view;
 
 import com.idlesmoothie.model.resource.Fruit;
+import java.io.InputStream;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
@@ -32,6 +33,7 @@ public class MineView {
     private final Canvas canvas;
     private final GraphicsContext gc;
     private final Image surfaceImage;
+    private final Image[] soilImages;
     private final int maxFloors;
     private int unlockedFloors;   // TODO replace with Mine once model.station exists
     private double scrollY;
@@ -52,6 +54,10 @@ public class MineView {
         canvas.setOnScroll(e -> onScroll(e.getDeltaY()));
 
         this.surfaceImage = new Image(getClass().getResourceAsStream("/images/mine/surface.png"));
+        this.soilImages = new Image[Fruit.values().length];
+        for (Fruit fruit : Fruit.values()) {
+            soilImages[fruit.ordinal()] = loadImage("/images/mine/soil_" + fruit.name().toLowerCase() + ".png");
+        }
     }
 
     /**
@@ -60,8 +66,8 @@ public class MineView {
     public void render() {
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         drawSurface();
-        for (int index = 1; index <= maxFloors; index++) {
-            drawSoil(index);
+        for (int index = 1; index <= maxFloors; index += FLOORS_PER_FRUIT) {
+            drawSoil(fruitOf(index));
         }
         for (int index = 1; index <= unlockedFloors; index++) {
             drawFloor(index);
@@ -97,10 +103,16 @@ public class MineView {
         gc.drawImage(surfaceImage, 0, -scrollY, canvas.getWidth(), SURFACE_HEIGHT);
     }
 
-    private void drawSoil(int index) {
-        int zone = (index - 1) / FLOORS_PER_FRUIT;
-        gc.setFill(SOIL_COLORS[Math.min(zone, SOIL_COLORS.length - 1)]);
-        gc.fillRect(0, floorY(index) - scrollY, canvas.getWidth(), FLOOR_HEIGHT);
+    private void drawSoil(Fruit fruit) {
+        double y = floorY(fruit.ordinal() * FLOORS_PER_FRUIT + 1) - scrollY;
+        double height = FLOORS_PER_FRUIT * FLOOR_HEIGHT;
+        Image image = soilImages[fruit.ordinal()];
+        if (image != null) {
+            gc.drawImage(image, 0, y, canvas.getWidth(), height);
+        } else {
+            gc.setFill(SOIL_COLORS[fruit.ordinal()]);
+            gc.fillRect(0, y, canvas.getWidth(), height);
+        }
     }
 
     private void drawFloor(int index) {
@@ -131,6 +143,16 @@ public class MineView {
 
     private double getRoomWidth() {
         return canvas.getWidth() - SHAFT_WIDTH - 2 * ROOM_MARGIN;
+    }
+
+    /**
+     * Loads an image from the classpath.
+     *
+     * @return the image, or null if the file does not exist yet (the caller draws a placeholder)
+     */
+    private Image loadImage(String path) {
+        InputStream stream = getClass().getResourceAsStream(path);
+        return stream == null ? null : new Image(stream);
     }
 
     private Fruit fruitOf(int index) {

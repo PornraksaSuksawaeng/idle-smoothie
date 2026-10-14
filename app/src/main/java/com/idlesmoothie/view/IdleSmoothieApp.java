@@ -17,7 +17,7 @@ public class IdleSmoothieApp extends Application {
      */
     @Override
     public void start(Stage stage) {
-        MineView mineView = new MineView(540, 960, 10, 4);
+        MineView mineView = new MineView(540, 960, 15, 4);
         mineView.render();
         StackPane root = new StackPane(mineView.getCanvas());
         stage.setTitle("Idle Smoothie");
