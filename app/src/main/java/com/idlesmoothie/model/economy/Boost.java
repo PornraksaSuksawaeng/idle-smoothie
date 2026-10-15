@@ -18,7 +18,7 @@ public final class Boost {
      * @param name the name shown to the player
      * @param multiplier the factor applied to the price, 2 double it
      * @param duration how long the boost last, in second
-     * @throws NullPoiterException if name is null
+     * @throws NullPointerException if name is null
      * @throws IllegalArgumentException if multiplier or duration is zero or negative
      */
     public Boost(String name, double multiplier, double duration) {

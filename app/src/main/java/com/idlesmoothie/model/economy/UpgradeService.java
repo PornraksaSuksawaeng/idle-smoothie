@@ -12,7 +12,7 @@ public final class UpgradeService {
      * @param wallet the wallet that pays for the levels
      * @param growth how much the cost grows at each levels
      *
-     * @throws NullPointerExceptions if wallet is null
+     * @throws NullPointerException if wallet is null
      * @throws IllegalArgumentException if growth is not greater than 1
      *
      */
@@ -46,7 +46,7 @@ public final class UpgradeService {
 
     /**
      * Returns what {@link #buy} would cost now, without buying anything.
-     * With {@link BuyMode#Max} and the wallet too short for one level, it return the cost of one level, so the button can still show a price.
+     * With {@link BuyMode#MAX} and the wallet too short for one level, it return the cost of one level, so the button can still show a price.
      *
      * @param station the station to level up
      * @param mode how many levels to buy 
