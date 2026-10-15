@@ -1,16 +1,16 @@
 package com.idlesmoothie.view;
 
+import com.idlesmoothie.core.Game;
 import com.idlesmoothie.model.creature.CarryingState;
 import com.idlesmoothie.model.creature.FillingState;
 import com.idlesmoothie.model.creature.GoingToExtractorState;
 import com.idlesmoothie.model.creature.Pulpie;
 import com.idlesmoothie.model.creature.PulpieState;
 import com.idlesmoothie.model.resource.Fruit;
-import com.idlesmoothie.model.resource.Storage;
 import com.idlesmoothie.model.station.Elevator;
 import com.idlesmoothie.model.station.Floor;
+import com.idlesmoothie.model.station.Mine;
 import java.io.InputStream;
-import java.util.List;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
@@ -33,7 +33,6 @@ public class MineView implements Renderable {
     private static final double PULPIE_SIZE = 24;
     private static final double CABIN_MARGIN = 8;
     private static final double CABIN_HEIGHT = 60;
-    private static final int FLOORS_PER_FRUIT = 3;   // TODO read from BalanceConfig
     private static final Color SHAFT_COLOR = Color.web("#3B2A1E");
     private static final Color LOCKED_COLOR = Color.web("#7A7A7A");
     private static final Color CRATE_COLOR = Color.web("#8B5A2B");
@@ -52,30 +51,22 @@ public class MineView implements Renderable {
     private final GraphicsContext gc;
     private final Image surfaceImage;
     private final Image[] soilImages;
-    private final int maxFloors;
-    private final List<Floor> floors;
-    private final Elevator elevator;
-    private final Storage surface;
+    private final Game game;
+    private final Mine mine;
     private double scrollY;
 
     /**
      * Creates the mine view.
      *
-     * @param width     canvas width in pixels
-     * @param height    canvas height in pixels
-     * @param maxFloors total number of floors the mine can have, used for the world height
-     * @param floors    unlocked floors, read on every frame
-     * @param elevator  elevator drawn in the shaft
-     * @param surface   surface stock where the elevator unloads
+     * @param width  canvas width in pixels
+     * @param height canvas height in pixels
+     * @param game   the game: read to draw the mine, and told about the player's clicks
      */
-    public MineView(double width, double height, int maxFloors, List<Floor> floors,
-            Elevator elevator, Storage surface) {
+    public MineView(double width, double height, Game game) {
         this.canvas = new Canvas(width, height);
         this.gc = canvas.getGraphicsContext2D();
-        this.maxFloors = maxFloors;
-        this.floors = floors;
-        this.elevator = elevator;
-        this.surface = surface;
+        this.game = game;
+        this.mine = game.getMine();
         canvas.setOnScroll(e -> onScroll(e.getDeltaY()));
         canvas.setOnMouseClicked(e -> onClick(e.getX(), e.getY()));
 
@@ -93,16 +84,12 @@ public class MineView implements Renderable {
     public void render() {
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         drawSurface();
-        for (Fruit fruit : Fruit.values()) {
-            if (fruit.ordinal() * FLOORS_PER_FRUIT < maxFloors) {
-                drawSoil(fruit);
-            }
-        }
-        for (Floor floor : floors) {
+        drawSoilZones();
+        for (Floor floor : mine.getFloors()) {
             drawFloor(floor);
         }
-        if (floors.size() < maxFloors) {
-            drawLockedFloor(floors.size());
+        if (mine.hasNextFloor()) {
+            drawLockedFloor(mine.getFloors().size());
         }
         drawShaft();
         drawElevator();
@@ -123,19 +110,19 @@ public class MineView implements Renderable {
     private void onClick(double x, double screenY) {
         double worldY = screenY + scrollY;
         if (x < SHAFT_WIDTH) {
-            elevator.start();
+            game.tapElevator();
             return;
         }
-        for (Floor floor : floors) {
+        for (Floor floor : mine.getFloors()) {
             double top = floorY(floor.getIndex());
             if (worldY >= top && worldY < top + FLOOR_HEIGHT) {
-                floor.start();
+                game.tapFloor(floor.getIndex());
             }
         }
     }
 
     private double getMaxScroll() {
-        double worldHeight = SURFACE_HEIGHT + maxFloors * FLOOR_HEIGHT;
+        double worldHeight = SURFACE_HEIGHT + mine.getMaxFloors() * FLOOR_HEIGHT;
         return Math.max(0, worldHeight - canvas.getHeight());
     }
 
@@ -150,9 +137,22 @@ public class MineView implements Renderable {
         gc.drawImage(surfaceImage, 0, -scrollY, canvas.getWidth(), SURFACE_HEIGHT);
     }
 
-    private void drawSoil(Fruit fruit) {
-        double y = floorY(fruit.ordinal() * FLOORS_PER_FRUIT) - scrollY;
-        double height = FLOORS_PER_FRUIT * FLOOR_HEIGHT;
+    /**
+     * Draws one soil texture per fruit zone, a zone being the floors that share the same fruit.
+     */
+    private void drawSoilZones() {
+        int start = 0;
+        for (int index = 1; index <= mine.getMaxFloors(); index++) {
+            if (index == mine.getMaxFloors() || mine.fruitForFloor(index) != mine.fruitForFloor(start)) {
+                drawSoil(mine.fruitForFloor(start), start, index - start);
+                start = index;
+            }
+        }
+    }
+
+    private void drawSoil(Fruit fruit, int firstIndex, int floorCount) {
+        double y = floorY(firstIndex) - scrollY;
+        double height = floorCount * FLOOR_HEIGHT;
         Image image = soilImages[fruit.ordinal()];
         if (image != null) {
             gc.drawImage(image, 0, y, canvas.getWidth(), height);
@@ -210,7 +210,7 @@ public class MineView implements Renderable {
     }
 
     private void drawShaft() {
-        double bottom = floorY(floors.size());
+        double bottom = floorY(mine.getFloors().size());
         gc.setFill(SHAFT_COLOR);
         gc.fillRect(0, SURFACE_HEIGHT - scrollY, SHAFT_WIDTH, bottom - SURFACE_HEIGHT);
     }
@@ -220,6 +220,7 @@ public class MineView implements Renderable {
      * at position 0 it stands on the surface ground.
      */
     private void drawElevator() {
+        Elevator elevator = mine.getElevator();
         double y = SURFACE_HEIGHT + elevator.getPosition() * FLOOR_HEIGHT - CABIN_HEIGHT - scrollY;
         gc.setFill(CABIN_COLOR);
         gc.fillRect(CABIN_MARGIN, y, SHAFT_WIDTH - 2 * CABIN_MARGIN, CABIN_HEIGHT);
@@ -229,7 +230,7 @@ public class MineView implements Renderable {
 
     private void drawSurfaceStock() {
         double y = SURFACE_HEIGHT - ROOM_MARGIN - scrollY;
-        drawLabel(String.format("Stock: %.1f", surface.getAmount()), getRoomX(), y);
+        drawLabel(String.format("Stock: %.1f", mine.getSurfaceAmount()), getRoomX(), y);
     }
 
     /**
