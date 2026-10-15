@@ -24,6 +24,7 @@ public final class BalanceConfig {
     private final double newFloorCostGrowth = 2.5;
     private final double barrierCostMultiplier = 5;
     private final int barrierMinLevel = 10;
+    private final double smoothieBasePrice = 1;
 
     /**
      * @return the number of full trips a Pulpie makes per second
@@ -141,5 +142,12 @@ public final class BalanceConfig {
      */
     public int getBarrierMinLevel() {
         return barrierMinLevel;
+    }
+
+    /**
+     * @return the coins earned for one unit of smoothie, before any bonus
+     */
+    public double getSmoothieBasePrice() {
+        return smoothieBasePrice;
     }
 }

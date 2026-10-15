@@ -1,12 +1,14 @@
 package com.idlesmoothie.model.station;
 
+import com.idlesmoothie.model.economy.Upgradable;
+
 /**
  * Base class of every station of the mine: floors, elevator and sell station.
  * Implements the Template Method pattern: {@link #update(double)} decides whether the station
  * works, and each subclass decides how it works in {@link #work(double)}.
  * Without a manager, a tap starts one round of work; with a manager, the station works on its own.
  */
-public abstract class Station {
+public abstract class Station implements Upgradable {
 
     private int level;
     private boolean running;
@@ -26,6 +28,7 @@ public abstract class Station {
     /**
      * @return the price in coins of the next level
      */
+    @Override
     public abstract double getUpgradeCost();
 
     /**
@@ -85,6 +88,7 @@ public abstract class Station {
      * @param levels number of levels to add
      * @throws IllegalArgumentException if {@code levels} is not positive
      */
+    @Override
     public void upgrade(int levels) {
         if (levels <= 0) {
             throw new IllegalArgumentException("Levels must be positive");
