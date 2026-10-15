@@ -10,6 +10,7 @@ import com.idlesmoothie.model.resource.Fruit;
 import com.idlesmoothie.model.station.Elevator;
 import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Mine;
+import com.idlesmoothie.model.station.SellStation;
 import java.io.InputStream;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -21,7 +22,8 @@ import javafx.scene.paint.Color;
  * <p>
  * The world is taller than the window: every element has a "world" y coordinate,
  * and is drawn at {@code worldY - scrollY}.
- * Clicking a floor sends its Pulpies on a trip; clicking the shaft calls the elevator.
+ * Clicking a floor sends its Pulpies on a trip, clicking the shaft calls the elevator
+ * and clicking the bar on the surface sells the surface stock.
  */
 public class MineView implements Renderable {
 
@@ -33,11 +35,14 @@ public class MineView implements Renderable {
     private static final double PULPIE_SIZE = 24;
     private static final double CABIN_MARGIN = 8;
     private static final double CABIN_HEIGHT = 60;
+    private static final double BAR_SIZE = 100;
     private static final Color SHAFT_COLOR = Color.web("#3B2A1E");
     private static final Color LOCKED_COLOR = Color.web("#7A7A7A");
     private static final Color CRATE_COLOR = Color.web("#8B5A2B");
     private static final Color EXTRACTOR_COLOR = Color.web("#4D4D4D");
     private static final Color CABIN_COLOR = Color.web("#C9A227");
+    private static final Color BAR_COLOR = Color.web("#E85D9A");
+    private static final Color PROGRESS_COLOR = Color.web("#6CC644");
     private static final Color LABEL_BACKGROUND = Color.rgb(0, 0, 0, 0.6);
     private static final Color[] SOIL_COLORS = {
         Color.web("#A8774A"),
@@ -94,6 +99,7 @@ public class MineView implements Renderable {
         drawShaft();
         drawElevator();
         drawSurfaceStock();
+        drawSellStation();
     }
 
     /**
@@ -109,6 +115,11 @@ public class MineView implements Renderable {
 
     private void onClick(double x, double screenY) {
         double worldY = screenY + scrollY;
+        if (x >= getBarX() && x < getBarX() + BAR_SIZE
+                && worldY >= getBarWorldY() && worldY < getBarWorldY() + BAR_SIZE) {
+            game.tapSellStation();
+            return;
+        }
         if (x < SHAFT_WIDTH) {
             game.tapElevator();
             return;
@@ -234,6 +245,22 @@ public class MineView implements Renderable {
     }
 
     /**
+     * Draws the Smoothie Bar standing on the surface ground, with the quantity being sold
+     * and a progress bar for the current sale.
+     */
+    private void drawSellStation() {
+        SellStation sellStation = mine.getSellStation();
+        double y = getBarWorldY() - scrollY;
+        gc.setFill(BAR_COLOR);
+        gc.fillRect(getBarX(), y, BAR_SIZE, BAR_SIZE);
+        gc.setFill(PROGRESS_COLOR);
+        gc.fillRect(getBarX(), y + BAR_SIZE - CABIN_MARGIN, BAR_SIZE * sellStation.getProgress(), CABIN_MARGIN);
+        gc.setFill(Color.WHITE);
+        gc.fillText("BAR", getBarX() + CABIN_MARGIN, y + 2 * CABIN_MARGIN);
+        drawLabel(String.format("%.1f", sellStation.getOnSaleAmount()), getBarX(), y - CABIN_MARGIN);
+    }
+
+    /**
      * Writes white text on a dark box so it stays readable over any background.
      */
     private void drawLabel(String text, double x, double y) {
@@ -241,6 +268,14 @@ public class MineView implements Renderable {
         gc.fillRect(x - 4, y - 14, text.length() * 7 + 8, 20);
         gc.setFill(Color.WHITE);
         gc.fillText(text, x, y);
+    }
+
+    private double getBarX() {
+        return canvas.getWidth() - BAR_SIZE;
+    }
+
+    private double getBarWorldY() {
+        return SURFACE_HEIGHT - BAR_SIZE;
     }
 
     private double getGroundY(double floorScreenY) {

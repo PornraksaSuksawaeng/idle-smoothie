@@ -3,6 +3,8 @@ package com.idlesmoothie.view;
 import com.idlesmoothie.core.Game;
 import java.util.List;
 import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
@@ -11,6 +13,8 @@ import javafx.stage.Stage;
  * JavaFX application: builds the main window.
  */
 public class IdleSmoothieApp extends Application {
+
+    private static final double HUD_MARGIN = 12;
 
     /**
      * Creates a new game, shows the main window and starts the game loop.
@@ -21,12 +25,16 @@ public class IdleSmoothieApp extends Application {
     public void start(Stage stage) {
         Game game = new Game();
         MineView mineView = new MineView(540, 960, game);
-        StackPane root = new StackPane(mineView.getCanvas());
+        HudView hudView = new HudView(game);
+
+        StackPane root = new StackPane(mineView.getCanvas(), hudView.getRoot());
+        StackPane.setAlignment(hudView.getRoot(), Pos.TOP_CENTER);
+        StackPane.setMargin(hudView.getRoot(), new Insets(HUD_MARGIN));
         stage.setTitle("Idle Smoothie");
         stage.setScene(new Scene(root, 540, 960));
         stage.setResizable(false);
         stage.show();
 
-        new GameLoop(game, List.of(mineView)).start();
+        new GameLoop(game, List.of(mineView, hudView)).start();
     }
 }
