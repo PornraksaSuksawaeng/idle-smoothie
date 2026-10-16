@@ -11,7 +11,10 @@ import com.idlesmoothie.model.station.Elevator;
 import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Mine;
 import com.idlesmoothie.model.station.SellStation;
+import com.idlesmoothie.model.station.Station;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
@@ -24,6 +27,7 @@ import javafx.scene.paint.Color;
  * and is drawn at {@code worldY - scrollY}.
  * Clicking a floor sends its Pulpies on a trip, clicking the shaft calls the elevator
  * and clicking the bar on the surface sells the surface stock.
+ * Every station has a small "Lv" button that opens its upgrade popup.
  */
 public class MineView implements Renderable {
 
@@ -36,6 +40,8 @@ public class MineView implements Renderable {
     private static final double CABIN_MARGIN = 8;
     private static final double CABIN_HEIGHT = 60;
     private static final double BAR_SIZE = 100;
+    private static final double LEVEL_WIDTH = 64;
+    private static final double LEVEL_HEIGHT = 24;
     private static final Color SHAFT_COLOR = Color.web("#3B2A1E");
     private static final Color LOCKED_COLOR = Color.web("#7A7A7A");
     private static final Color BUYABLE_COLOR = Color.web("#3E8E41");
@@ -59,6 +65,8 @@ public class MineView implements Renderable {
     private final Image[] soilImages;
     private final Game game;
     private final Mine mine;
+    private final UpgradeController controller;
+    private final UpgradePanel upgradePanel;
     private double scrollY;
 
     /**
@@ -66,13 +74,18 @@ public class MineView implements Renderable {
      *
      * @param width  canvas width in pixels
      * @param height canvas height in pixels
-     * @param game   the game: read to draw the mine, and told about the player's clicks
+     * @param game         the game read to draw the mine
+     * @param controller   receives the player's clicks
+     * @param upgradePanel popup opened by the "Lv" buttons
      */
-    public MineView(double width, double height, Game game) {
+    public MineView(double width, double height, Game game, UpgradeController controller,
+            UpgradePanel upgradePanel) {
         this.canvas = new Canvas(width, height);
         this.gc = canvas.getGraphicsContext2D();
         this.game = game;
         this.mine = game.getMine();
+        this.controller = controller;
+        this.upgradePanel = upgradePanel;
         canvas.setOnScroll(e -> onScroll(e.getDeltaY()));
         canvas.setOnMouseClicked(e -> onClick(e.getX(), e.getY()));
 
@@ -101,6 +114,9 @@ public class MineView implements Renderable {
         drawElevator();
         drawSurfaceStock();
         drawSellStation();
+        for (Station station : getStations()) {
+            drawLevelButton(station);
+        }
     }
 
     /**
@@ -114,27 +130,42 @@ public class MineView implements Renderable {
         scrollY = Math.clamp(scrollY - deltaY, 0, getMaxScroll());
     }
 
+    /**
+     * Finds what was clicked, the "Lv" buttons first since they lie on top of the stations.
+     */
     private void onClick(double x, double screenY) {
         double worldY = screenY + scrollY;
-        if (x >= getBarX() && x < getBarX() + BAR_SIZE
-                && worldY >= getBarWorldY() && worldY < getBarWorldY() + BAR_SIZE) {
-            game.tapSellStation();
+        for (Station station : getStations()) {
+            if (getLevelButton(station).contains(x, worldY)) {
+                upgradePanel.show(station);
+                return;
+            }
+        }
+        if (getBar().contains(x, worldY)) {
+            controller.onTap(mine.getSellStation());
             return;
         }
         if (x < SHAFT_WIDTH) {
-            game.tapElevator();
+            controller.onTap(mine.getElevator());
             return;
         }
         for (Floor floor : mine.getFloors()) {
             double top = floorY(floor.getIndex());
             if (worldY >= top && worldY < top + FLOOR_HEIGHT) {
-                game.tapFloor(floor.getIndex());
+                controller.onTap(floor);
             }
         }
         double lockedTop = floorY(mine.getFloors().size());
         if (mine.hasNextFloor() && worldY >= lockedTop && worldY < lockedTop + FLOOR_HEIGHT) {
-            game.buyNextFloor();
+            controller.onUnlockFloor();
         }
+    }
+
+    private List<Station> getStations() {
+        List<Station> stations = new ArrayList<>(mine.getFloors());
+        stations.add(mine.getElevator());
+        stations.add(mine.getSellStation());
+        return stations;
     }
 
     private double getMaxScroll() {
@@ -263,7 +294,7 @@ public class MineView implements Renderable {
      */
     private void drawSellStation() {
         SellStation sellStation = mine.getSellStation();
-        double y = getBarWorldY() - scrollY;
+        double y = getBar().y() - scrollY;
         gc.setFill(BAR_COLOR);
         gc.fillRect(getBarX(), y, BAR_SIZE, BAR_SIZE);
         gc.setFill(PROGRESS_COLOR);
@@ -271,6 +302,39 @@ public class MineView implements Renderable {
         gc.setFill(Color.WHITE);
         gc.fillText("BAR", getBarX() + CABIN_MARGIN, y + 2 * CABIN_MARGIN);
         drawLabel(String.format("%.1f", sellStation.getOnSaleAmount()), getBarX(), y - CABIN_MARGIN);
+    }
+
+    /**
+     * Draws the "Lv" button of a station, green when the player can afford the next upgrade.
+     */
+    private void drawLevelButton(Station station) {
+        Box box = getLevelButton(station);
+        double y = box.y() - scrollY;
+        gc.setFill(game.canUpgrade(station, controller.getMode()) ? BUYABLE_COLOR : LOCKED_COLOR);
+        gc.fillRect(box.x(), y, box.width(), box.height());
+        gc.setFill(Color.WHITE);
+        gc.fillText("Lv " + station.getLevel() + " ^", box.x() + CABIN_MARGIN, y + LEVEL_HEIGHT - CABIN_MARGIN);
+    }
+
+    /**
+     * @return where the "Lv" button of the station is, in world coordinates
+     */
+    private Box getLevelButton(Station station) {
+        return switch (station.getType()) {
+            case FLOOR -> new Box(getExtractorX() + BOX_SIZE - LEVEL_WIDTH,
+                    floorY(((Floor) station).getIndex()) + ROOM_MARGIN + CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+            case ELEVATOR -> new Box(CABIN_MARGIN,
+                    SURFACE_HEIGHT - CABIN_HEIGHT - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+            case SELL -> new Box(getBarX() + (BAR_SIZE - LEVEL_WIDTH) / 2,
+                    getBarWorldY() + (BAR_SIZE - LEVEL_HEIGHT) / 2, LEVEL_WIDTH, LEVEL_HEIGHT);
+        };
+    }
+
+    /**
+     * @return where the Smoothie Bar is, in world coordinates
+     */
+    private Box getBar() {
+        return new Box(getBarX(), getBarWorldY(), BAR_SIZE, BAR_SIZE);
     }
 
     /**
@@ -309,6 +373,16 @@ public class MineView implements Renderable {
 
     private double getExtractorX() {
         return getRoomX() + getRoomWidth() - ROOM_MARGIN - BOX_SIZE;
+    }
+
+    /**
+     * A clickable rectangle in world coordinates, shared by the drawing and the click detection.
+     */
+    private record Box(double x, double y, double width, double height) {
+
+        boolean contains(double pointX, double pointY) {
+            return pointX >= x && pointX < x + width && pointY >= y && pointY < y + height;
+        }
     }
 
     /**

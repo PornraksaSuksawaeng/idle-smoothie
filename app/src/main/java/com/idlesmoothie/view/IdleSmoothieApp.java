@@ -24,10 +24,12 @@ public class IdleSmoothieApp extends Application {
     @Override
     public void start(Stage stage) {
         Game game = new Game();
-        MineView mineView = new MineView(540, 960, game);
+        UpgradeController controller = new UpgradeController(game);
+        UpgradePanel upgradePanel = new UpgradePanel(game, controller);
+        MineView mineView = new MineView(540, 960, game, controller, upgradePanel);
         HudView hudView = new HudView(game);
 
-        StackPane root = new StackPane(mineView.getCanvas(), hudView.getRoot());
+        StackPane root = new StackPane(mineView.getCanvas(), hudView.getRoot(), upgradePanel.getRoot());
         StackPane.setAlignment(hudView.getRoot(), Pos.TOP_CENTER);
         StackPane.setMargin(hudView.getRoot(), new Insets(HUD_MARGIN));
         stage.setTitle("Idle Smoothie");
@@ -35,6 +37,6 @@ public class IdleSmoothieApp extends Application {
         stage.setResizable(false);
         stage.show();
 
-        new GameLoop(game, List.of(mineView, hudView)).start();
+        new GameLoop(game, List.of(mineView, hudView, upgradePanel)).start();
     }
 }
