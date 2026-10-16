@@ -38,6 +38,7 @@ public class MineView implements Renderable {
     private static final double BAR_SIZE = 100;
     private static final Color SHAFT_COLOR = Color.web("#3B2A1E");
     private static final Color LOCKED_COLOR = Color.web("#7A7A7A");
+    private static final Color BUYABLE_COLOR = Color.web("#3E8E41");
     private static final Color CRATE_COLOR = Color.web("#8B5A2B");
     private static final Color EXTRACTOR_COLOR = Color.web("#4D4D4D");
     private static final Color CABIN_COLOR = Color.web("#C9A227");
@@ -130,6 +131,10 @@ public class MineView implements Renderable {
                 game.tapFloor(floor.getIndex());
             }
         }
+        double lockedTop = floorY(mine.getFloors().size());
+        if (mine.hasNextFloor() && worldY >= lockedTop && worldY < lockedTop + FLOOR_HEIGHT) {
+            game.buyNextFloor();
+        }
     }
 
     private double getMaxScroll() {
@@ -212,12 +217,20 @@ public class MineView implements Renderable {
         gc.fillRect(x, getGroundY(floorScreenY) - PULPIE_SIZE, PULPIE_SIZE, PULPIE_SIZE);
     }
 
+    /**
+     * Draws the next floor to buy, highlighted when the player can buy it.
+     * Behind a barrier, it says that the deepest floor must be upgraded first.
+     */
     private void drawLockedFloor(int index) {
         double y = floorY(index) - scrollY;
-        gc.setFill(LOCKED_COLOR);
+        gc.setFill(game.canBuyNextFloor() ? BUYABLE_COLOR : LOCKED_COLOR);
         gc.fillRect(getRoomX(), y + ROOM_MARGIN, getRoomWidth(), FLOOR_HEIGHT - 2 * ROOM_MARGIN);
         gc.setFill(Color.WHITE);
         gc.fillText("Unlock floor " + (index + 1), getRoomX() + ROOM_MARGIN, y + 2 * ROOM_MARGIN);
+        String detail = mine.canUnlockNextFloor()
+                ? String.format("Cost: %.0f coins", mine.getNextFloorCost())
+                : "Barrier: upgrade floor " + index + " first";
+        gc.fillText(detail, getRoomX() + ROOM_MARGIN, y + 3 * ROOM_MARGIN);
     }
 
     private void drawShaft() {
