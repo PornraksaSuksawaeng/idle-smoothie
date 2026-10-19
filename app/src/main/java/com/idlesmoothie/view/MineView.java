@@ -32,7 +32,13 @@ import javafx.scene.paint.Color;
 public class MineView implements Renderable {
 
     private static final double SURFACE_HEIGHT = 400;
-    private static final double FLOOR_HEIGHT = 220;
+    private static final double TOP_DIRT_HEIGHT = 167;
+    private static final double FLOOR_HEIGHT = 240;
+    private static final double ROOM_HEIGHT = 160;
+    private static final double EDGE_HEIGHT = 20;
+    private static final double GRASS_HEIGHT = 16;
+    private static final double GROUND_RAISE = 7;
+    private static final double BARRIER_HEIGHT = 104;
     private static final double SHAFT_WIDTH = 80;
     private static final double ROOM_MARGIN = 20;
     private static final double BOX_SIZE = 40;
@@ -51,6 +57,9 @@ public class MineView implements Renderable {
     private static final Color BAR_COLOR = Color.web("#E85D9A");
     private static final Color PROGRESS_COLOR = Color.web("#6CC644");
     private static final Color LABEL_BACKGROUND = Color.rgb(0, 0, 0, 0.6);
+    private static final Color GRASS_COLOR = Color.web("#5DAA3C");
+    private static final Color TOP_DIRT_COLOR = Color.web("#B5845A");
+    private static final Color BARRIER_COLOR = Color.web("#6B6B6B");
     private static final Color[] SOIL_COLORS = {
         Color.web("#A8774A"),
         Color.web("#8B5E3C"),
@@ -63,6 +72,9 @@ public class MineView implements Renderable {
     private final GraphicsContext gc;
     private final Image surfaceImage;
     private final Image[] soilImages;
+    private final Image[] roomImages;
+    private final Image groundImage;
+    private final Image barrierImage;
     private final Game game;
     private final Mine mine;
     private final UpgradeController controller;
@@ -90,10 +102,10 @@ public class MineView implements Renderable {
         canvas.setOnMouseClicked(e -> onClick(e.getX(), e.getY()));
 
         this.surfaceImage = new Image(getClass().getResourceAsStream("/images/mine/surface.png"));
-        this.soilImages = new Image[Fruit.values().length];
-        for (Fruit fruit : Fruit.values()) {
-            soilImages[fruit.ordinal()] = loadImage("/images/mine/soil_" + fruit.name().toLowerCase() + ".png");
-        }
+        this.soilImages = loadFruitImages("soil_");
+        this.roomImages = loadFruitImages("room_");
+        this.groundImage = loadImage("/images/mine/ground.png");
+        this.barrierImage = loadImage("/images/mine/barrier.png");
     }
 
     /**
@@ -104,11 +116,18 @@ public class MineView implements Renderable {
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         drawSurface();
         drawSoilZones();
-        for (Floor floor : mine.getFloors()) {
-            drawFloor(floor);
-        }
         if (mine.hasNextFloor()) {
             drawLockedFloor(mine.getFloors().size());
+        }
+        List<Floor> floors = mine.getFloors();
+        for (int i = floors.size() - 1; i >= 0; i--) {
+            drawFloor(floors.get(i));
+        }
+        drawGround();
+        for (int i = floors.size(); i < mine.getMaxFloors(); i++) {
+            if (mine.isBehindBarrier(i)) {
+                drawBarrier(i);
+            }
         }
         drawShaft();
         drawElevator();
@@ -169,15 +188,16 @@ public class MineView implements Renderable {
     }
 
     private double getMaxScroll() {
-        double worldHeight = SURFACE_HEIGHT + mine.getMaxFloors() * FLOOR_HEIGHT;
-        return Math.max(0, worldHeight - canvas.getHeight());
+        return Math.max(0, floorY(mine.getMaxFloors()) - canvas.getHeight());
     }
 
     /**
+     * A floor is a room with its own dirt below it; its jagged bottom edge covers the top of the next room.
+     *
      * @return the world y of the top of the floor, the first floor having index 0
      */
     private double floorY(int index) {
-        return SURFACE_HEIGHT + index * FLOOR_HEIGHT;
+        return SURFACE_HEIGHT + TOP_DIRT_HEIGHT + index * FLOOR_HEIGHT;
     }
 
     private void drawSurface() {
@@ -209,12 +229,42 @@ public class MineView implements Renderable {
         }
     }
 
+    /**
+     * Draws the grass, the pebbles and the dirt between the surface and the first floor.
+     * Its jagged bottom edge covers the top of the first floor.
+     * The image is raised so that the transparent space between its grass blades shows the surface.
+     */
+    private void drawGround() {
+        double y = SURFACE_HEIGHT - scrollY;
+        if (groundImage != null) {
+            gc.drawImage(groundImage, 0, y - GROUND_RAISE, canvas.getWidth(), TOP_DIRT_HEIGHT + EDGE_HEIGHT);
+            return;
+        }
+        gc.setFill(TOP_DIRT_COLOR);
+        gc.fillRect(0, y, canvas.getWidth(), TOP_DIRT_HEIGHT);
+        gc.setFill(GRASS_COLOR);
+        gc.fillRect(0, y, canvas.getWidth(), GRASS_HEIGHT);
+        drawDirtEdge(TOP_DIRT_COLOR, 0, y + TOP_DIRT_HEIGHT, canvas.getWidth());
+    }
+
+    /**
+     * Draws the room (top part) and its dirt (bottom part), from the shaft to the right edge.
+     */
     private void drawFloor(Floor floor) {
         double y = floorY(floor.getIndex()) - scrollY;
-        gc.setFill(Color.web(floor.getFruit().getColorHex()));
-        gc.fillRect(getRoomX(), y + ROOM_MARGIN, getRoomWidth(), FLOOR_HEIGHT - 2 * ROOM_MARGIN);
+        Fruit fruit = floor.getFruit();
+        Image image = roomImages[fruit.ordinal()];
+        if (image != null) {
+            gc.drawImage(image, getRoomX(), y, getRoomWidth(), FLOOR_HEIGHT + EDGE_HEIGHT);
+        } else {
+            gc.setFill(Color.web(fruit.getColorHex()));
+            gc.fillRect(getRoomX(), y, getRoomWidth(), ROOM_HEIGHT);
+            gc.setFill(SOIL_COLORS[fruit.ordinal()]);
+            gc.fillRect(getRoomX(), y + ROOM_HEIGHT, getRoomWidth(), FLOOR_HEIGHT - ROOM_HEIGHT);
+            drawDirtEdge(SOIL_COLORS[fruit.ordinal()], getRoomX(), y + FLOOR_HEIGHT, getRoomWidth());
+        }
         gc.setFill(Color.WHITE);
-        gc.fillText("Floor " + (floor.getIndex() + 1), getRoomX() + ROOM_MARGIN, y + 2 * ROOM_MARGIN);
+        gc.fillText("Floor " + (floor.getIndex() + 1), getCrateX(), y + EDGE_HEIGHT + ROOM_MARGIN);
 
         double boxY = getGroundY(y) - BOX_SIZE;
         gc.setFill(CRATE_COLOR);
@@ -255,13 +305,41 @@ public class MineView implements Renderable {
     private void drawLockedFloor(int index) {
         double y = floorY(index) - scrollY;
         gc.setFill(game.canBuyNextFloor() ? BUYABLE_COLOR : LOCKED_COLOR);
-        gc.fillRect(getRoomX(), y + ROOM_MARGIN, getRoomWidth(), FLOOR_HEIGHT - 2 * ROOM_MARGIN);
+        gc.fillRect(getRoomX(), y, getRoomWidth(), ROOM_HEIGHT);
         gc.setFill(Color.WHITE);
-        gc.fillText("Unlock floor " + (index + 1), getRoomX() + ROOM_MARGIN, y + 2 * ROOM_MARGIN);
+        double textY = y + ROOM_HEIGHT / 2;
+        gc.fillText("Unlock floor " + (index + 1), getCrateX(), textY);
         String detail = mine.canUnlockNextFloor()
                 ? String.format("Cost: %.0f coins", mine.getNextFloorCost())
                 : "Barrier: upgrade floor " + index + " first";
-        gc.fillText(detail, getRoomX() + ROOM_MARGIN, y + 3 * ROOM_MARGIN);
+        gc.fillText(detail, getCrateX(), textY + ROOM_MARGIN);
+    }
+
+    /**
+     * Draws the barrier half over the junction between two fruit soils,
+     * so that once it is gone the spacing between the rooms stays the same.
+     */
+    private void drawBarrier(int index) {
+        double y = floorY(index) - BARRIER_HEIGHT / 2 - scrollY;
+        if (barrierImage != null) {
+            gc.drawImage(barrierImage, 0, y, canvas.getWidth(), BARRIER_HEIGHT);
+            return;
+        }
+        gc.setFill(BARRIER_COLOR);
+        gc.fillRect(0, y, canvas.getWidth(), BARRIER_HEIGHT);
+        gc.setFill(Color.WHITE);
+        gc.fillText("BARRIER", canvas.getWidth() / 2 - 2 * ROOM_MARGIN, y + BARRIER_HEIGHT / 2);
+    }
+
+    /**
+     * Draws a row of dirt teeth hanging below y, a placeholder for the irregular edge of the images.
+     */
+    private void drawDirtEdge(Color color, double x, double y, double width) {
+        gc.setFill(color);
+        for (double toothX = x; toothX < x + width; toothX += EDGE_HEIGHT) {
+            gc.fillPolygon(new double[] {toothX, toothX + EDGE_HEIGHT, toothX + EDGE_HEIGHT / 2},
+                    new double[] {y, y, y + EDGE_HEIGHT}, 3);
+        }
     }
 
     private void drawShaft() {
@@ -271,16 +349,30 @@ public class MineView implements Renderable {
     }
 
     /**
-     * Draws the cabin so that its bottom matches the bottom of the floor it is at:
+     * Draws the cabin so that its bottom matches the ground of the floor it is at:
      * at position 0 it stands on the surface ground.
      */
     private void drawElevator() {
         Elevator elevator = mine.getElevator();
-        double y = SURFACE_HEIGHT + elevator.getPosition() * FLOOR_HEIGHT - CABIN_HEIGHT - scrollY;
+        double y = getCabinBottomY(elevator.getPosition()) - CABIN_HEIGHT - scrollY;
         gc.setFill(CABIN_COLOR);
         gc.fillRect(CABIN_MARGIN, y, SHAFT_WIDTH - 2 * CABIN_MARGIN, CABIN_HEIGHT);
         gc.setFill(Color.BLACK);
         gc.fillText(String.format("%.1f", elevator.getCabinAmount()), 2 * CABIN_MARGIN, y + CABIN_HEIGHT / 2);
+    }
+
+    /**
+     * Between the surface and the first floor the cabin also crosses the ground strip.
+     *
+     * @param position the elevator position, 0 at the surface and 1 at the first floor
+     * @return the world y of the bottom of the cabin
+     */
+    private double getCabinBottomY(double position) {
+        double firstGround = floorY(0) + ROOM_HEIGHT;
+        if (position <= 1) {
+            return SURFACE_HEIGHT + position * (firstGround - SURFACE_HEIGHT);
+        }
+        return firstGround + (position - 1) * FLOOR_HEIGHT;
     }
 
     private void drawSurfaceStock() {
@@ -322,7 +414,7 @@ public class MineView implements Renderable {
     private Box getLevelButton(Station station) {
         return switch (station.getType()) {
             case FLOOR -> new Box(getExtractorX() + BOX_SIZE - LEVEL_WIDTH,
-                    floorY(((Floor) station).getIndex()) + ROOM_MARGIN + CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+                    floorY(((Floor) station).getIndex()) + EDGE_HEIGHT + CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
             case ELEVATOR -> new Box(CABIN_MARGIN,
                     SURFACE_HEIGHT - CABIN_HEIGHT - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
             case SELL -> new Box(getBarX() + (BAR_SIZE - LEVEL_WIDTH) / 2,
@@ -356,15 +448,15 @@ public class MineView implements Renderable {
     }
 
     private double getGroundY(double floorScreenY) {
-        return floorScreenY + FLOOR_HEIGHT - ROOM_MARGIN;
+        return floorScreenY + ROOM_HEIGHT;
     }
 
     private double getRoomX() {
-        return SHAFT_WIDTH + ROOM_MARGIN;
+        return SHAFT_WIDTH;
     }
 
     private double getRoomWidth() {
-        return canvas.getWidth() - SHAFT_WIDTH - 2 * ROOM_MARGIN;
+        return canvas.getWidth() - SHAFT_WIDTH;
     }
 
     private double getCrateX() {
@@ -383,6 +475,17 @@ public class MineView implements Renderable {
         boolean contains(double pointX, double pointY) {
             return pointX >= x && pointX < x + width && pointY >= y && pointY < y + height;
         }
+    }
+
+    /**
+     * @return one image per fruit, indexed by ordinal, null where the file does not exist yet
+     */
+    private Image[] loadFruitImages(String prefix) {
+        Image[] images = new Image[Fruit.values().length];
+        for (Fruit fruit : Fruit.values()) {
+            images[fruit.ordinal()] = loadImage("/images/mine/" + prefix + fruit.name().toLowerCase() + ".png");
+        }
+        return images;
     }
 
     /**
