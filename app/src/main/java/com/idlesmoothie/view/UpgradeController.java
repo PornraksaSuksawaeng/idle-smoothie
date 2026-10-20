@@ -2,6 +2,7 @@ package com.idlesmoothie.view;
 
 import com.idlesmoothie.core.Game;
 import com.idlesmoothie.model.economy.BuyMode;
+import com.idlesmoothie.model.manager.Manager;
 import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Station;
 
@@ -44,6 +45,16 @@ public class UpgradeController {
      */
     public void onUpgrade(Station station) {
         game.upgrade(station, mode);
+    }
+
+    /**
+     * Hires a manager for the station, replacing the current one if any.
+     *
+     * @param station the station to automate
+     * @return the new manager, or {@code null} if the player cannot pay
+     */
+    public Manager onHireManager(Station station) {
+        return game.hireManager(station);
     }
 
     /**

@@ -118,7 +118,7 @@ public class UpgradePanel implements Renderable {
         root.setVisible(false);
     }
 
-    private static String nameOf(Station station) {
+    static String nameOf(Station station) {
         return switch (station.getType()) {
             case FLOOR -> "Floor " + (((Floor) station).getIndex() + 1);
             case ELEVATOR -> "Elevator";

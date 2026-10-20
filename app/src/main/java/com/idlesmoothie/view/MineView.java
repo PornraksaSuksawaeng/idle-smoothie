@@ -6,6 +6,7 @@ import com.idlesmoothie.model.creature.FillingState;
 import com.idlesmoothie.model.creature.GoingToExtractorState;
 import com.idlesmoothie.model.creature.Pulpie;
 import com.idlesmoothie.model.creature.PulpieState;
+import com.idlesmoothie.model.manager.Manager;
 import com.idlesmoothie.model.resource.Fruit;
 import com.idlesmoothie.model.station.Elevator;
 import com.idlesmoothie.model.station.Floor;
@@ -27,7 +28,9 @@ import javafx.scene.paint.Color;
  * and is drawn at {@code worldY - scrollY}.
  * Clicking a floor sends its Pulpies on a trip, clicking the shaft calls the elevator
  * and clicking the bar on the surface sells the surface stock.
- * Every station has a small "Lv" button that opens its upgrade popup.
+ * Every station has a small "Lv" button that opens its upgrade popup
+ * and a "Mgr" button that opens its manager shop.
+ * A hired manager stands next to its station, in the color of its rarity.
  */
 public class MineView implements Renderable {
 
@@ -43,6 +46,9 @@ public class MineView implements Renderable {
     private static final double ROOM_MARGIN = 20;
     private static final double BOX_SIZE = 40;
     private static final double PULPIE_SIZE = 24;
+    private static final double MANAGER_WIDTH = 24;
+    private static final double MANAGER_HEIGHT = 48;
+    private static final double MANAGER_GAP = 2;
     private static final double CABIN_MARGIN = 8;
     private static final double CABIN_HEIGHT = 60;
     private static final double BAR_SIZE = 100;
@@ -79,6 +85,7 @@ public class MineView implements Renderable {
     private final Mine mine;
     private final UpgradeController controller;
     private final UpgradePanel upgradePanel;
+    private final ShopView shopView;
     private double scrollY;
 
     /**
@@ -89,15 +96,17 @@ public class MineView implements Renderable {
      * @param game         the game read to draw the mine
      * @param controller   receives the player's clicks
      * @param upgradePanel popup opened by the "Lv" buttons
+     * @param shopView     popup opened by the "Mgr" buttons
      */
     public MineView(double width, double height, Game game, UpgradeController controller,
-            UpgradePanel upgradePanel) {
+            UpgradePanel upgradePanel, ShopView shopView) {
         this.canvas = new Canvas(width, height);
         this.gc = canvas.getGraphicsContext2D();
         this.game = game;
         this.mine = game.getMine();
         this.controller = controller;
         this.upgradePanel = upgradePanel;
+        this.shopView = shopView;
         canvas.setOnScroll(e -> onScroll(e.getDeltaY()));
         canvas.setOnMouseClicked(e -> onClick(e.getX(), e.getY()));
 
@@ -134,7 +143,9 @@ public class MineView implements Renderable {
         drawSurfaceStock();
         drawSellStation();
         for (Station station : getStations()) {
+            drawManager(station);
             drawLevelButton(station);
+            drawManagerButton(station);
         }
     }
 
@@ -157,6 +168,10 @@ public class MineView implements Renderable {
         for (Station station : getStations()) {
             if (getLevelButton(station).contains(x, worldY)) {
                 upgradePanel.show(station);
+                return;
+            }
+            if (getManagerButton(station).contains(x, worldY)) {
+                shopView.show(station);
                 return;
             }
         }
@@ -279,7 +294,7 @@ public class MineView implements Renderable {
     }
 
     private void drawPulpie(Pulpie pulpie, double floorScreenY) {
-        double start = getCrateX() + BOX_SIZE;
+        double start = getManagerX() + MANAGER_WIDTH + MANAGER_GAP;
         double end = getExtractorX() - PULPIE_SIZE;
         PulpieState state = pulpie.getState();
         double x = start;
@@ -423,6 +438,49 @@ public class MineView implements Renderable {
     }
 
     /**
+     * Draws the "Mgr" button of a station, green when the player can afford a manager.
+     */
+    private void drawManagerButton(Station station) {
+        Box box = getManagerButton(station);
+        double y = box.y() - scrollY;
+        gc.setFill(game.canHireManager(station) ? BUYABLE_COLOR : LOCKED_COLOR);
+        gc.fillRect(box.x(), y, box.width(), box.height());
+        gc.setFill(Color.WHITE);
+        gc.fillText("Mgr", box.x() + CABIN_MARGIN, y + LEVEL_HEIGHT - CABIN_MARGIN);
+    }
+
+    /**
+     * @return where the "Mgr" button of the station is, in world coordinates: next to its "Lv" button
+     */
+    private Box getManagerButton(Station station) {
+        Box level = getLevelButton(station);
+        return switch (station.getType()) {
+            case FLOOR -> new Box(level.x() - LEVEL_WIDTH - CABIN_MARGIN, level.y(), LEVEL_WIDTH, LEVEL_HEIGHT);
+            case ELEVATOR -> new Box(level.x(), level.y() - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+            case SELL -> new Box(level.x(), level.y() + LEVEL_HEIGHT + CABIN_MARGIN / 2, LEVEL_WIDTH, LEVEL_HEIGHT);
+        };
+    }
+
+    /**
+     * Draws the manager of the station, if any, as a person-sized rectangle in the color of its rarity:
+     * in front of the crate on a floor, next to the shaft or to the bar on the surface.
+     */
+    private void drawManager(Station station) {
+        Manager manager = station.getManager();
+        if (manager == null) {
+            return;
+        }
+        double x = switch (station.getType()) {
+            case FLOOR -> getManagerX();
+            case ELEVATOR -> SHAFT_WIDTH + MANAGER_GAP;
+            case SELL -> getBarX() - MANAGER_WIDTH - MANAGER_GAP;
+        };
+        double groundY = station instanceof Floor floor ? floorY(floor.getIndex()) + ROOM_HEIGHT : SURFACE_HEIGHT;
+        gc.setFill(Color.web(manager.getRarity().getColorHex()));
+        gc.fillRect(x, groundY - MANAGER_HEIGHT - scrollY, MANAGER_WIDTH, MANAGER_HEIGHT);
+    }
+
+    /**
      * @return where the Smoothie Bar is, in world coordinates
      */
     private Box getBar() {
@@ -460,7 +518,14 @@ public class MineView implements Renderable {
     }
 
     private double getCrateX() {
-        return getRoomX() + ROOM_MARGIN;
+        return getRoomX() + CABIN_MARGIN;
+    }
+
+    /**
+     * @return the x of the floor manager, standing just in front of the crate
+     */
+    private double getManagerX() {
+        return getCrateX() + BOX_SIZE + MANAGER_GAP;
     }
 
     private double getExtractorX() {
