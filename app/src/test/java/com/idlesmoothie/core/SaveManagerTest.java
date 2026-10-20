@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
@@ -65,5 +66,22 @@ class SaveManagerTest {
 
         assertThrows(IllegalArgumentException.class, () -> new SaveManager(null));
         assertThrows(IllegalArgumentException.class, () -> saves.save(null));
+    }
+
+    @Test
+    void damagedFileIsReportedAsAnIoError() throws IOException {
+        Path file = folder.resolve("save.json");
+        Files.writeString(file, "{ \"coins\": 12, \"floorLevels\": [");
+
+        assertThrows(IOException.class, () -> new SaveManager(file).load());
+    }
+
+    @Test
+    void saveLeavesNoTemporaryFile() throws IOException {
+        Path file = folder.resolve("save.json");
+
+        new SaveManager(file).save(new GameSnapshot(1, List.of(1), 1, 1, List.of()));
+
+        assertFalse(Files.exists(folder.resolve("save.json.tmp")));
     }
 }
