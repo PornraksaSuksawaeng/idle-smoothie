@@ -142,6 +142,14 @@ public class Floor extends Station {
     }
 
     /**
+     * Forgets the round in progress, so the next tap or the new manager sends every idle Pulpie again.
+     */
+    @Override
+    protected void onManagerChanged() {
+        roundStarted = false;
+    }
+
+    /**
      * Sends the Pulpies on their trips. A tap sends every Pulpie once and the round ends when all
      * are back; with a manager, each Pulpie leaves again as soon as it is back.
      */
