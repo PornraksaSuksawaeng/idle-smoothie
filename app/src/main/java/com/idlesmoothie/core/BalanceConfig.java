@@ -25,6 +25,8 @@ public final class BalanceConfig {
     private final double barrierCostMultiplier = 5;
     private final int barrierMinLevel = 10;
     private final double smoothieBasePrice = 1;
+    private final double managerCostMultiplier = 3;
+    private final double managerCostGrowth = 1.5;
 
     /**
      * @return the number of full trips a Pulpie makes per second
@@ -149,5 +151,19 @@ public final class BalanceConfig {
      */
     public double getSmoothieBasePrice() {
         return smoothieBasePrice;
+    }
+
+    /**
+     * @return the multiplier applied to the next upgrade price
+     */
+    public double getManagerCostMultiplier() {
+        return managerCostMultiplier;
+    }
+
+    /**
+     * @return the growth, such as {@code 1.5} for +50% per hire
+     */
+    public double getManagerCostGrowth() {
+        return managerCostGrowth;
     }
 }

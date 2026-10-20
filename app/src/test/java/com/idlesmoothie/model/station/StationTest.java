@@ -1,11 +1,17 @@
 package com.idlesmoothie.model.station;
 
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+
+import com.idlesmoothie.model.manager.CapacityBoostAbility;
+import com.idlesmoothie.model.manager.Manager;
+import com.idlesmoothie.model.manager.Rarity;
+import com.idlesmoothie.model.manager.SpeedBoostAbility;
 
 class StationTest {
 
@@ -231,5 +237,127 @@ class StationTest {
         FakeStation station = new FakeStation(2, 10);
 
         assertEquals(20, station.getThroughput(), DELTA);
+    }
+
+    private static Manager floorManager(double speedFactor) {
+        return new Manager(Rarity.RARE, StationType.FLOOR, new SpeedBoostAbility(speedFactor));
+    }
+
+    @Test
+    void newStationHasNoManager() {
+        FakeStation station = new FakeStation(2, 10);
+
+        assertNull(station.getManager());
+        assertFalse(station.isAutomated());
+    }
+
+    @Test
+    void managerAutomatesTheStation() {
+        FakeStation station = new FakeStation(2, 10);
+
+        station.assignManager(floorManager(1.5));
+
+        assertTrue(station.isAutomated());
+        station.update(0.5);
+        assertEquals(0.5, station.getWorkedTime(), DELTA);
+    }
+
+    @Test
+    void managerBonusIsAppliedToStats() {
+        FakeStation station = new FakeStation(2, 10);
+
+        station.assignManager(floorManager(1.5));
+
+        assertEquals(3, station.getStats().getSpeed(), DELTA);
+        assertEquals(10, station.getStats().getCapacity(), DELTA);
+        assertEquals(30, station.getThroughput(), DELTA);
+    }
+
+    @Test
+    void newManagerReplacesTheOldOne() {
+        FakeStation station = new FakeStation(2, 10);
+        Manager second = new Manager(Rarity.EPIC, StationType.FLOOR, new CapacityBoostAbility(2));
+
+        station.assignManager(floorManager(1.5));
+        station.assignManager(second);
+
+        assertSame(second, station.getManager());
+        assertEquals(2, station.getStats().getSpeed(), DELTA);
+        assertEquals(20, station.getStats().getCapacity(), DELTA);
+    }
+
+    @Test
+    void managerOfAnotherStationTypeIsRejected() {
+        FakeStation station = new FakeStation(2, 10);
+        Manager elevatorManager = new Manager(Rarity.RARE, StationType.ELEVATOR, new SpeedBoostAbility(1.5));
+
+        assertThrows(IllegalArgumentException.class, () -> station.assignManager(elevatorManager));
+        assertNull(station.getManager());
+    }
+
+    @Test
+    void nullManagerIsRejected() {
+        assertThrows(IllegalArgumentException.class, () -> new FakeStation(2, 10).assignManager(null));
+    }
+
+    @Test
+    void removeManagerGoesBackToTaps() {
+        FakeStation station = new FakeStation(2, 10);
+        station.assignManager(floorManager(1.5));
+
+        station.removeManager();
+
+        assertNull(station.getManager());
+        assertFalse(station.isAutomated());
+        assertEquals(2, station.getStats().getSpeed(), DELTA);
+        station.update(0.5);
+        assertEquals(0, station.getWorkedTime(), DELTA);
+    }
+
+    @Test
+    void removeManagerWithoutManagerDoesNothing() {
+        FakeStation station = new FakeStation(2, 10);
+
+        station.removeManager();
+
+        assertFalse(station.isAutomated());
+    }
+
+    @Test
+    void managerEndsTheTappedRound() {
+        FakeStation station = new FakeStation(2, 10);
+        station.start();
+
+        station.assignManager(floorManager(1.5));
+        station.removeManager();
+
+        assertFalse(station.isRunning());
+    }
+
+    @Test
+    void everyAssignedManagerIsCounted() {
+        FakeStation station = new FakeStation(2, 10);
+        assertEquals(0, station.getManagersHired());
+
+        station.assignManager(floorManager(1.5));
+        station.assignManager(floorManager(2));
+        station.removeManager();
+
+        assertEquals(2, station.getManagersHired());
+    }
+
+    @Test
+    void restoreManagersHiredSetsTheSavedCount() {
+        FakeStation station = new FakeStation(2, 10);
+        station.assignManager(floorManager(1.5));
+
+        station.restoreManagersHired(4);
+
+        assertEquals(4, station.getManagersHired());
+    }
+
+    @Test
+    void restoreManagersHiredRejectsANegativeCount() {
+        assertThrows(IllegalArgumentException.class, () -> new FakeStation(2, 10).restoreManagersHired(-1));
     }
 }
