@@ -1,18 +1,21 @@
 package com.idlesmoothie.model.station;
 
-import com.idlesmoothie.core.BalanceConfig;
-import com.idlesmoothie.model.creature.Pulpie;
-import com.idlesmoothie.model.resource.Fruit;
-import com.idlesmoothie.model.resource.SmoothieBatch;
-import com.idlesmoothie.model.resource.Storage;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+
+import com.idlesmoothie.core.BalanceConfig;
+import com.idlesmoothie.model.creature.Pulpie;
+import com.idlesmoothie.model.manager.Manager;
+import com.idlesmoothie.model.manager.Rarity;
+import com.idlesmoothie.model.manager.SpeedBoostAbility;
+import com.idlesmoothie.model.resource.Fruit;
+import com.idlesmoothie.model.resource.SmoothieBatch;
+import com.idlesmoothie.model.resource.Storage;
 
 class FloorTest {
 
@@ -267,5 +270,33 @@ class FloorTest {
         Floor floor = new Floor(0, Fruit.BLUEBERRY, config);
 
         assertTrue(floor.collect(10).isEmpty());
+    }
+
+    @Test
+    void managerBonusMakesPulpiesFaster() {
+        Floor floor = new Floor(0, Fruit.STRAWBERRY, config);
+        floor.assignManager(new Manager(Rarity.EPIC, StationType.FLOOR, new SpeedBoostAbility(2)));
+
+        run(floor, oneTrip / 2 + 0.1);
+
+        assertEquals(floor.baseStats().getCapacity(), floor.getStoredAmount(), DELTA);
+    }
+
+    @Test
+    void tapAfterRemovingTheManagerSendsIdlePulpiesAgain() {
+        Floor floor = new Floor(0, Fruit.STRAWBERRY, config);
+        Pulpie pulpie = floor.getPulpies().get(0);
+        floor.assignManager(new Manager(Rarity.COMMON, StationType.FLOOR, new SpeedBoostAbility(1)));
+        floor.update(STEP);
+        while (!pulpie.isIdle()) {
+            floor.update(STEP);
+        }
+        double before = floor.getStoredAmount();
+
+        floor.removeManager();
+        floor.start();
+        run(floor, oneTrip);
+
+        assertEquals(before + floor.getStats().getCapacity(), floor.getStoredAmount(), DELTA);
     }
 }
