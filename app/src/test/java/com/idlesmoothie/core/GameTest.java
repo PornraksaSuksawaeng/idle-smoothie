@@ -1,5 +1,8 @@
 package com.idlesmoothie.core;
 
+import java.util.List;
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,6 +18,7 @@ import com.idlesmoothie.model.manager.Manager;
 import com.idlesmoothie.model.manager.ManagerFactory;
 import com.idlesmoothie.model.manager.Rarity;
 import com.idlesmoothie.model.station.Floor;
+import com.idlesmoothie.model.station.Mine;
 import com.idlesmoothie.model.station.Station;
 import com.idlesmoothie.model.station.StationType;
 
@@ -323,5 +327,62 @@ class GameTest {
     @Test
     void constructorRejectsNullFactory() {
         assertThrows(IllegalArgumentException.class, () -> new Game(config, prices, wallet, null));
+    }
+
+    /** A game with a barrier crossed, upgrades and managers, one of them rerolled. */
+    private Game playedGame() {
+        Wallet richWallet = new Wallet();
+        Game game = new Game(config, prices, richWallet, new ManagerFactory());
+        richWallet.addCoins(1e12);
+        Mine mine = game.getMine();
+        while (mine.getFloors().size() <= config.getFloorsPerFruit()) {
+            Floor deepest = mine.getDeepestFloor();
+            if (deepest.getLevel() < config.getBarrierMinLevel()) {
+                deepest.upgrade(config.getBarrierMinLevel() - deepest.getLevel());
+            }
+            game.buyNextFloor();
+        }
+        game.upgrade(mine.getElevator(), BuyMode.X10);
+        game.hireManager(mine.getFloors().get(1));
+        game.hireManager(mine.getElevator());
+        game.hireManager(mine.getElevator());
+        return game;
+    }
+
+    @Test
+    void restoreGivesBackTheSavedGame() {
+        GameSnapshot saved = playedGame().createSnapshot();
+
+        Game loaded = newGame();
+        loaded.restore(saved);
+
+        assertEquals(saved, loaded.createSnapshot());
+    }
+
+    @Test
+    void restoredManagersWorkAndKeepTheirPrice() {
+        Game played = playedGame();
+
+        Game loaded = newGame();
+        loaded.restore(played.createSnapshot());
+
+        assertTrue(loaded.getMine().getElevator().isAutomated());
+        assertEquals(played.getManagerCost(played.getMine().getElevator()),
+                loaded.getManagerCost(loaded.getMine().getElevator()), DELTA);
+    }
+
+    @Test
+    void invalidSnapshotLeavesTheGameUntouched() {
+        Game game = newGame();
+        GameSnapshot before = game.createSnapshot();
+        ManagerSnapshot ghost = new ManagerSnapshot(StationType.FLOOR, 7, 1, UUID.randomUUID(),
+                Rarity.RARE, true, 1.5);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> game.restore(new GameSnapshot(-1, List.of(1), 1, 1, List.of())));
+        assertThrows(IllegalArgumentException.class,
+                () -> game.restore(new GameSnapshot(500, List.of(1), 1, 1, List.of(ghost))));
+
+        assertEquals(before, game.createSnapshot());
     }
 }
