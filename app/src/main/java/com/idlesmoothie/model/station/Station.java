@@ -14,6 +14,7 @@ public abstract class Station implements Upgradable {
     private int level;
     private boolean running;
     private Manager manager;
+    private int managersHired;
 
     /**
      * Creates an idle station at level 1, without a manager.
@@ -85,6 +86,7 @@ public abstract class Station implements Upgradable {
             throw new IllegalArgumentException("This manager cannot work on this station");
         }
         this.manager = manager;
+        managersHired++;
         endRound();
         onManagerChanged();
     }
@@ -108,6 +110,30 @@ public abstract class Station implements Upgradable {
      */
     public Manager getManager() {
         return manager;
+    }
+
+    /**
+     * Returns how many managers were assigned to this station, the current one included.
+     * Each new one costs more, so the player cannot reroll the rarity for free.
+     *
+     * @return the number of managers hired for this station
+     */
+    public int getManagersHired() {
+        return managersHired;
+    }
+
+    /**
+     * Sets how many managers were bought for this station, when a saved game is loaded.
+     * Call it after assigning the saved manager, which counts as one hire.
+     *
+     * @param count the saved number of hires
+     * @throws IllegalArgumentException if {@code count} is negative, or is 0 while the station has a manager
+     */
+    public void restoreManagersHired(int count) {
+        if (count < 0 || (manager != null && count == 0)) {
+            throw new IllegalArgumentException("Invalid number of managers hired: " + count);
+        }
+        managersHired = count;
     }
 
     /**

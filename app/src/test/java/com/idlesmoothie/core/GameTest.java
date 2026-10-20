@@ -3,6 +3,7 @@ package com.idlesmoothie.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,9 @@ import org.junit.jupiter.api.Test;
 import com.idlesmoothie.model.economy.BuyMode;
 import com.idlesmoothie.model.economy.PriceCalculator;
 import com.idlesmoothie.model.economy.Wallet;
+import com.idlesmoothie.model.manager.Manager;
+import com.idlesmoothie.model.manager.ManagerFactory;
+import com.idlesmoothie.model.manager.Rarity;
 import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Station;
 import com.idlesmoothie.model.station.StationType;
@@ -224,5 +228,100 @@ class GameTest {
 
         assertEquals(game.getMine().findBottleneck(), game.getBottleneck());
         assertEquals(StationType.FLOOR, game.getBottleneck());
+    }
+
+    /** Game whose managers are always the most common rarity with a speed bonus. */
+    private Game newGameWithFixedRolls() {
+        return new Game(config, prices, wallet, new ManagerFactory(() -> 0.0));
+    }
+
+    @Test
+    void firstManagerCostsAMultipleOfTheNextUpgrade() {
+        Game game = newGame();
+        Station floor = game.getMine().getFloors().get(0);
+
+        assertEquals(floor.getUpgradeCost() * config.getManagerCostMultiplier(), game.getManagerCost(floor), DELTA);
+    }
+
+    @Test
+    void hiringPaysAndAutomatesTheStation() {
+        Game game = newGameWithFixedRolls();
+        Station floor = game.getMine().getFloors().get(0);
+        wallet.addCoins(game.getManagerCost(floor) + 10);
+
+        assertTrue(game.canHireManager(floor));
+        Manager manager = game.hireManager(floor);
+
+        assertSame(manager, floor.getManager());
+        assertEquals(Rarity.COMMON, manager.getRarity());
+        assertTrue(floor.isAutomated());
+        assertEquals(10, game.getCoins(), DELTA);
+    }
+
+    @Test
+    void hiredManagerWorksOnTheRightStationType() {
+        Game game = newGameWithFixedRolls();
+        wallet.addCoins(1e9);
+
+        assertEquals(StationType.ELEVATOR, game.hireManager(game.getMine().getElevator()).getStationType());
+        assertEquals(StationType.SELL, game.hireManager(game.getMine().getSellStation()).getStationType());
+    }
+
+    @Test
+    void eachNewManagerOnAStationCostsMore() {
+        Game game = newGameWithFixedRolls();
+        Station elevator = game.getMine().getElevator();
+        double first = game.getManagerCost(elevator);
+        wallet.addCoins(1e9);
+
+        Manager old = game.hireManager(elevator);
+        Manager replacement = game.hireManager(elevator);
+
+        assertSame(replacement, elevator.getManager());
+        assertTrue(old != replacement);
+        assertEquals(first * config.getManagerCostGrowth() * config.getManagerCostGrowth(),
+                game.getManagerCost(elevator), DELTA);
+    }
+
+    @Test
+    void hiringWithoutEnoughCoinsChangesNothing() {
+        Game game = newGameWithFixedRolls();
+        Station sell = game.getMine().getSellStation();
+        wallet.addCoins(game.getManagerCost(sell) - 1);
+        double coins = game.getCoins();
+
+        assertFalse(game.canHireManager(sell));
+        assertNull(game.hireManager(sell));
+
+        assertNull(sell.getManager());
+        assertEquals(coins, game.getCoins(), DELTA);
+    }
+
+    @Test
+    void automatedChainEarnsCoinsWithoutTaps() {
+        Game game = newGameWithFixedRolls();
+        wallet.addCoins(1e9);
+        game.hireManager(game.getMine().getFloors().get(0));
+        game.hireManager(game.getMine().getElevator());
+        game.hireManager(game.getMine().getSellStation());
+        double coins = game.getCoins();
+
+        run(game, 30);
+
+        assertTrue(game.getCoins() > coins);
+    }
+
+    @Test
+    void managerMethodsRejectNullStation() {
+        Game game = newGame();
+
+        assertThrows(IllegalArgumentException.class, () -> game.getManagerCost(null));
+        assertThrows(IllegalArgumentException.class, () -> game.canHireManager(null));
+        assertThrows(IllegalArgumentException.class, () -> game.hireManager(null));
+    }
+
+    @Test
+    void constructorRejectsNullFactory() {
+        assertThrows(IllegalArgumentException.class, () -> new Game(config, prices, wallet, null));
     }
 }

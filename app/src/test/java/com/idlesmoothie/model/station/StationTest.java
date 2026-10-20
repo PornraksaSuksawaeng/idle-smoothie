@@ -333,4 +333,31 @@ class StationTest {
 
         assertFalse(station.isRunning());
     }
+
+    @Test
+    void everyAssignedManagerIsCounted() {
+        FakeStation station = new FakeStation(2, 10);
+        assertEquals(0, station.getManagersHired());
+
+        station.assignManager(floorManager(1.5));
+        station.assignManager(floorManager(2));
+        station.removeManager();
+
+        assertEquals(2, station.getManagersHired());
+    }
+
+    @Test
+    void restoreManagersHiredSetsTheSavedCount() {
+        FakeStation station = new FakeStation(2, 10);
+        station.assignManager(floorManager(1.5));
+
+        station.restoreManagersHired(4);
+
+        assertEquals(4, station.getManagersHired());
+    }
+
+    @Test
+    void restoreManagersHiredRejectsANegativeCount() {
+        assertThrows(IllegalArgumentException.class, () -> new FakeStation(2, 10).restoreManagersHired(-1));
+    }
 }

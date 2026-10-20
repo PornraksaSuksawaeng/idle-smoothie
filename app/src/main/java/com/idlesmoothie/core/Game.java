@@ -9,6 +9,8 @@ import com.idlesmoothie.model.economy.PriceCalculator;
 import com.idlesmoothie.model.economy.UpgradeReport;
 import com.idlesmoothie.model.economy.UpgradeService;
 import com.idlesmoothie.model.economy.Wallet;
+import com.idlesmoothie.model.manager.Manager;
+import com.idlesmoothie.model.manager.ManagerFactory;
 import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Mine;
 import com.idlesmoothie.model.station.Station;
@@ -23,9 +25,11 @@ import com.idlesmoothie.model.station.StationType;
  */
 public class Game {
 
+    private final BalanceConfig config;
     private final Wallet wallet;
     private final Mine mine;
     private final UpgradeService upgradeService;
+    private final ManagerFactory managerFactory;
 
     /**
      * Starts a new game with the default balance values.
@@ -44,7 +48,7 @@ public class Game {
     }
 
     /**
-     * Starts a new game with the given parts, so tests can choose the prices and the balance.
+     * Starts a new game with the given parts and real random managers.
      *
      * @param config          game balance values
      * @param priceCalculator gives the price of the smoothie sold
@@ -52,12 +56,28 @@ public class Game {
      * @throws IllegalArgumentException if an argument is {@code null}
      */
     public Game(BalanceConfig config, PriceCalculator priceCalculator, Wallet wallet) {
-        if (config == null || priceCalculator == null || wallet == null) {
-            throw new IllegalArgumentException("Config, price calculator and wallet must not be null");
+        this(config, priceCalculator, wallet, new ManagerFactory());
+    }
+
+    /**
+     * Starts a new game with the given parts, so tests can choose the prices, the balance and the rolls.
+     *
+     * @param config          game balance values
+     * @param priceCalculator gives the price of the smoothie sold
+     * @param wallet          the player's coins
+     * @param managerFactory  builds the managers the player buys
+     * @throws IllegalArgumentException if an argument is {@code null}
+     */
+    public Game(BalanceConfig config, PriceCalculator priceCalculator, Wallet wallet,
+                ManagerFactory managerFactory) {
+        if (config == null || priceCalculator == null || wallet == null || managerFactory == null) {
+            throw new IllegalArgumentException("Config, price calculator, wallet and manager factory must not be null");
         }
+        this.config = config;
         this.wallet = wallet;
         this.mine = new Mine(priceCalculator, wallet, config);
         this.upgradeService = new UpgradeService(wallet, config.getUpgradeCostGrowth());
+        this.managerFactory = managerFactory;
     }
 
     /**
@@ -196,6 +216,50 @@ public class Game {
         }
         raiseLevel(mine.getElevator(), snapshot.elevatorLevel());
         raiseLevel(mine.getSellStation(), snapshot.sellLevel());
+    }
+
+    /**
+     * Returns the price of a manager for the station: a multiple of its next upgrade,
+     * growing with each manager already hired for it.
+     *
+     * @param station the station to automate
+     * @return the price in coins
+     * @throws IllegalArgumentException if the station is {@code null}
+     */
+    public double getManagerCost(Station station) {
+        if (station == null) {
+            throw new IllegalArgumentException("Station must not be null");
+        }
+        return station.getUpgradeCost() * config.getManagerCostMultiplier()
+                * Math.pow(config.getManagerCostGrowth(), station.getManagersHired());
+    }
+
+    /**
+     * Tells whether the player can pay for a manager for the station, used to grey out the button.
+     *
+     * @param station the station to automate
+     * @return {@code true} if the player has enough coins
+     * @throws IllegalArgumentException if the station is {@code null}
+     */
+    public boolean canHireManager(Station station) {
+        return wallet.canAfford(getManagerCost(station));
+    }
+
+    /**
+     * Pays for a manager with a rolled rarity and bonus, and puts it on the station,
+     * replacing the previous one if any.
+     *
+     * @param station the station to automate
+     * @return the new manager, for the view to show the roll, or {@code null} if the player cannot pay
+     * @throws IllegalArgumentException if the station is {@code null}
+     */
+    public Manager hireManager(Station station) {
+        if (!wallet.spendCoins(getManagerCost(station))) {
+            return null;
+        }
+        Manager manager = managerFactory.create(station.getType());
+        station.assignManager(manager);
+        return manager;
     }
 
     /**
