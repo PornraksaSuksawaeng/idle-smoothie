@@ -1,5 +1,8 @@
 package com.idlesmoothie.core;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.idlesmoothie.model.economy.BasePriceCalculator;
 import com.idlesmoothie.model.economy.BuyMode;
 import com.idlesmoothie.model.economy.PriceCalculator;
@@ -15,6 +18,8 @@ import com.idlesmoothie.model.station.StationType;
  * Single entry point of the model for the view (Facade pattern).
  * Builds the whole game, advances it each frame and turns the player's actions into model calls.
  * The view reads the state through {@link #getMine()} and {@link #getCoins()}.
+ * It is also the originator of the Memento pattern: {@link #createSnapshot()} copies the state
+ * and {@link #restore(GameSnapshot)} rebuilds it.
  */
 public class Game {
 
@@ -149,6 +154,51 @@ public class Game {
     }
 
     /**
+     * Copies the state worth saving into plain values.
+     * Pulpie and elevator positions and crate contents are left out.
+     *
+     * @return the coins and the level of every unlocked floor, of the elevator and of the sell station
+     */
+    public GameSnapshot createSnapshot() {
+        List<Integer> floorLevels = new ArrayList<>();
+        for (Floor floor : mine.getFloors()) {
+            floorLevels.add(floor.getLevel());
+        }
+        return new GameSnapshot(wallet.getCoins(), floorLevels,
+                mine.getElevator().getLevel(), mine.getSellStation().getLevel());
+    }
+
+    /**
+     * Rebuilds a saved state on this game, which must be new: one floor and every station at level 1.
+     * Each floor gets its level before the next one is unlocked, so the barriers accept it.
+     *
+     * @param snapshot the state to rebuild
+     * @throws IllegalArgumentException if {@code snapshot} is {@code null} or holds negative coins
+     * @throws IllegalStateException    if this game is not new, or if the mine refuses a saved floor
+     */
+    public void restore(GameSnapshot snapshot) {
+        if (snapshot == null) {
+            throw new IllegalArgumentException("Snapshot must not be null");
+        }
+        // A new game has one floor and every station at level 1. The coins don't matter, they are replaced.
+        GameSnapshot newGame = new GameSnapshot(wallet.getCoins(), List.of(1), 1, 1);
+        if (!createSnapshot().equals(newGame)) {
+            throw new IllegalStateException("A snapshot can only be restored on a new game");
+        }
+        wallet.resetCoins();
+        wallet.addCoins(snapshot.coins());
+        List<Integer> floorLevels = snapshot.floorLevels();
+        for (int i = 0; i < floorLevels.size(); i++) {
+            raiseLevel(mine.getFloors().get(i), floorLevels.get(i));
+            if (i < floorLevels.size() - 1) {
+                mine.unlockNextFloor();
+            }
+        }
+        raiseLevel(mine.getElevator(), snapshot.elevatorLevel());
+        raiseLevel(mine.getSellStation(), snapshot.sellLevel());
+    }
+
+    /**
      * @return the type of station that limits the income, to highlight it
      */
     public StationType getBottleneck() {
@@ -172,6 +222,13 @@ public class Game {
     private static void requireUpgradable(Station station, BuyMode mode) {
         if (station == null || mode == null) {
             throw new IllegalArgumentException("Station and mode must not be null");
+        }
+    }
+
+    // A station starts at level 1, so a saved level n needs n - 1 more. upgrade(0) would throw.
+    private static void raiseLevel(Station station, int level) {
+        if (level > 1) {
+            station.upgrade(level - 1);
         }
     }
 }
