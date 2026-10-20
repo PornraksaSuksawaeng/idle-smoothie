@@ -9,8 +9,11 @@ import com.idlesmoothie.model.economy.PriceCalculator;
 import com.idlesmoothie.model.economy.UpgradeReport;
 import com.idlesmoothie.model.economy.UpgradeService;
 import com.idlesmoothie.model.economy.Wallet;
+import com.idlesmoothie.model.manager.CapacityBoostAbility;
 import com.idlesmoothie.model.manager.Manager;
+import com.idlesmoothie.model.manager.ManagerAbility;
 import com.idlesmoothie.model.manager.ManagerFactory;
+import com.idlesmoothie.model.manager.SpeedBoostAbility;
 import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Mine;
 import com.idlesmoothie.model.station.Station;
@@ -177,34 +180,40 @@ public class Game {
      * Copies the state worth saving into plain values.
      * Pulpie and elevator positions and crate contents are left out.
      *
-     * @return the coins and the level of every unlocked floor, of the elevator and of the sell station
+     * @return the coins, the level of every station, and every manager with the station it works on
      */
     public GameSnapshot createSnapshot() {
         List<Integer> floorLevels = new ArrayList<>();
+        List<ManagerSnapshot> managers = new ArrayList<>();
         for (Floor floor : mine.getFloors()) {
             floorLevels.add(floor.getLevel());
+            addManager(managers, floor, floor.getIndex());
         }
-        return new GameSnapshot(wallet.getCoins(), floorLevels,
-                mine.getElevator().getLevel(), mine.getSellStation().getLevel());
+        addManager(managers, mine.getElevator(), 0);
+        addManager(managers, mine.getSellStation(), 0);
+        return new GameSnapshot(wallet.getCoins(), floorLevels, mine.getElevator().getLevel(), mine.getSellStation().getLevel(), managers);
     }
 
     /**
-     * Rebuilds a saved state on this game, which must be new: one floor and every station at level 1.
-     * Each floor gets its level before the next one is unlocked, so the barriers accept it.
+     * Rebuilds a saved state on this game, which must be new: one floor, every station at level 1, no manager.
+     * The whole snapshot is checked before anything changes, so a refused snapshot leaves the game untouched.
+     * Each floor gets its level before the next one is unlocked, so the barriers accept it;
+     * managers come back last, with their saved rarity and bonus instead of a new roll.
      *
      * @param snapshot the state to rebuild
-     * @throws IllegalArgumentException if {@code snapshot} is {@code null} or holds negative coins
-     * @throws IllegalStateException    if this game is not new, or if the mine refuses a saved floor
+     * @throws IllegalArgumentException if {@code snapshot} is {@code null} or holds values a game cannot have
+     * @throws IllegalStateException    if this game is not new
      */
     public void restore(GameSnapshot snapshot) {
         if (snapshot == null) {
             throw new IllegalArgumentException("Snapshot must not be null");
         }
-        // A new game has one floor and every station at level 1. The coins don't matter, they are replaced.
-        GameSnapshot newGame = new GameSnapshot(wallet.getCoins(), List.of(1), 1, 1);
+        // A new game has one floor, every station at level 1 and no manager. The coins are replaced anyway.
+        GameSnapshot newGame = new GameSnapshot(wallet.getCoins(), List.of(1), 1, 1, List.of());
         if (!createSnapshot().equals(newGame)) {
             throw new IllegalStateException("A snapshot can only be restored on a new game");
         }
+        checkRestorable(snapshot);
         wallet.resetCoins();
         wallet.addCoins(snapshot.coins());
         List<Integer> floorLevels = snapshot.floorLevels();
@@ -216,6 +225,14 @@ public class Game {
         }
         raiseLevel(mine.getElevator(), snapshot.elevatorLevel());
         raiseLevel(mine.getSellStation(), snapshot.sellLevel());
+        for (ManagerSnapshot saved : snapshot.managers()) {
+            Station station = stationOf(saved);
+            ManagerAbility ability = saved.speedBonus()
+                    ? new SpeedBoostAbility(saved.factor())
+                    : new CapacityBoostAbility(saved.factor());
+            station.assignManager(new Manager(saved.id(), saved.rarity(), saved.stationType(), ability));
+            station.restoreManagersHired(saved.managersHired());
+        }
     }
 
     /**
@@ -293,6 +310,58 @@ public class Game {
     private static void raiseLevel(Station station, int level) {
         if (level > 1) {
             station.upgrade(level - 1);
+        }
+    }
+
+    // Saves the station's manager, if it has one.
+    private static void addManager(List<ManagerSnapshot> managers, Station station, int floorIndex) {
+        Manager manager = station.getManager();
+        if (manager == null) {
+            return;
+        }
+        boolean speed = manager.getAbility() instanceof SpeedBoostAbility;
+        double factor = speed
+                ? ((SpeedBoostAbility) manager.getAbility()).getFactor()
+                : ((CapacityBoostAbility) manager.getAbility()).getFactor();
+        managers.add(new ManagerSnapshot(station.getType(), floorIndex, station.getManagersHired(),
+                manager.getId(), manager.getRarity(), speed, factor));
+    }
+
+    // Finds the station a saved manager works on.
+    private Station stationOf(ManagerSnapshot saved) {
+        return switch (saved.stationType()) {
+            case FLOOR -> mine.getFloors().get(saved.floorIndex());
+            case ELEVATOR -> mine.getElevator();
+            case SELL -> mine.getSellStation();
+        };
+    }
+
+    // Refuses a damaged snapshot before anything changes, so it never leaves a half-loaded game.
+    private void checkRestorable(GameSnapshot snapshot) {
+        List<Integer> levels = snapshot.floorLevels();
+        if (!(snapshot.coins() >= 0) || levels.isEmpty() || levels.size() > mine.getMaxFloors()) {
+            throw new IllegalArgumentException("Invalid coins or number of floors in the save");
+        }
+        for (int i = 0; i < levels.size(); i++) {
+            if (levels.get(i) < 1) {
+                throw new IllegalArgumentException("Invalid level for floor " + i);
+            }
+            if (i > 0 && mine.isBehindBarrier(i) && levels.get(i - 1) < config.getBarrierMinLevel()) {
+                throw new IllegalArgumentException("Floor " + i + " is behind a barrier that was not crossed");
+            }
+        }
+        if (snapshot.elevatorLevel() < 1 || snapshot.sellLevel() < 1) {
+            throw new IllegalArgumentException("Invalid station level in the save");
+        }
+        for (ManagerSnapshot saved : snapshot.managers()) {
+            if (saved.stationType() == null || saved.id() == null || saved.rarity() == null
+                    || saved.factor() < 1 || saved.managersHired() < 1) {
+                throw new IllegalArgumentException("Invalid manager in the save");
+            }
+            if (saved.stationType() == StationType.FLOOR
+                    && (saved.floorIndex() < 0 || saved.floorIndex() >= levels.size())) {
+                throw new IllegalArgumentException("A saved manager works on a floor that does not exist");
+            }
         }
     }
 }

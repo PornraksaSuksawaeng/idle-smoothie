@@ -1,17 +1,20 @@
 package com.idlesmoothie.core;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.idlesmoothie.model.manager.Rarity;
+import com.idlesmoothie.model.station.StationType;
 
 class SaveManagerTest {
 
@@ -21,7 +24,9 @@ class SaveManagerTest {
     @Test
     void loadReturnsWhatWasSaved() throws IOException {
         SaveManager saves = new SaveManager(folder.resolve("save.json"));
-        GameSnapshot snapshot = new GameSnapshot(1234.5, List.of(11, 5, 1), 3, 7);
+        ManagerSnapshot manager = new ManagerSnapshot(StationType.ELEVATOR, 0, 2, UUID.randomUUID(),
+        Rarity.EPIC, true, 2.0);
+        GameSnapshot snapshot = new GameSnapshot(1234.5, List.of(11, 5, 1), 3, 7, List.of(manager));
 
         saves.save(snapshot);
 
@@ -31,8 +36,8 @@ class SaveManagerTest {
     @Test
     void saveReplacesThePreviousSave() throws IOException {
         SaveManager saves = new SaveManager(folder.resolve("save.json"));
-        saves.save(new GameSnapshot(1, List.of(1), 1, 1));
-        GameSnapshot newer = new GameSnapshot(99, List.of(4, 2), 2, 2);
+        saves.save(new GameSnapshot(1, List.of(1), 1, 1, List.of()));
+        GameSnapshot newer = new GameSnapshot(99, List.of(4, 2), 2, 2, List.of());
 
         saves.save(newer);
 

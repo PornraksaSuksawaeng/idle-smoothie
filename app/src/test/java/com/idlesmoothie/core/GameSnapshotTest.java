@@ -1,17 +1,19 @@
 package com.idlesmoothie.core;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 import com.idlesmoothie.model.economy.BasePriceCalculator;
 import com.idlesmoothie.model.economy.Wallet;
+import com.idlesmoothie.model.manager.Rarity;
 import com.idlesmoothie.model.station.Mine;
+import com.idlesmoothie.model.station.StationType;
 
 class GameSnapshotTest {
 
@@ -67,11 +69,24 @@ class GameSnapshotTest {
     @Test
     void snapshotKeepsItsOwnCopyOfTheFloorLevels() {
         List<Integer> levels = new ArrayList<>(List.of(3, 1));
-        GameSnapshot snapshot = new GameSnapshot(10, levels, 1, 1);
+        GameSnapshot snapshot = new GameSnapshot(10, levels, 1, 1, List.of());
 
         levels.set(0, 99);
 
         assertEquals(List.of(3, 1), snapshot.floorLevels());
         assertThrows(UnsupportedOperationException.class, () -> snapshot.floorLevels().add(2));
+    }
+
+    @Test
+    void snapshotKeepsItsOwnCopyOfTheManagers() {
+        ManagerSnapshot manager = new ManagerSnapshot(StationType.ELEVATOR, 0, 1, UUID.randomUUID(),
+                Rarity.EPIC, true, 2.0);
+        List<ManagerSnapshot> managers = new ArrayList<>(List.of(manager));
+        GameSnapshot snapshot = new GameSnapshot(10, List.of(1), 1, 1, managers);
+
+        managers.clear();
+
+        assertEquals(List.of(manager), snapshot.managers());
+        assertThrows(UnsupportedOperationException.class, () -> snapshot.managers().add(manager));
     }
 }

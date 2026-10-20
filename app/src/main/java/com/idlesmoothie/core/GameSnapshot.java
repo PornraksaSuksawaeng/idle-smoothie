@@ -10,15 +10,17 @@ import java.util.List;
  * @param floorLevels   the level of each unlocked floor, from the top one to the deepest one
  * @param elevatorLevel the level of the elevator
  * @param sellLevel     the level of the sell station
+ * @param managers      the manager of every station that has one
  */
-public record GameSnapshot(double coins, List<Integer> floorLevels, int elevatorLevel, int sellLevel) {
+public record GameSnapshot(double coins, List<Integer> floorLevels, int elevatorLevel, int sellLevel, List<ManagerSnapshot> managers) {
 
     /**
-     * Keeps a read-only copy of the floor levels, so the snapshot never changes once it is made.
+     * Keeps read-only copies of the lists, so the snapshot never changes once it is made.
      *
-     * @throws NullPointerException if {@code floorLevels} or one of its levels is {@code null}
+     * @throws NullPointerException if a list or one of its elements is {@code null}
      */
     public GameSnapshot {
         floorLevels = List.copyOf(floorLevels);
+        managers = List.copyOf(managers);
     }
 }
