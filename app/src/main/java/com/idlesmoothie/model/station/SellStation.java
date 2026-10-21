@@ -27,10 +27,10 @@ public class SellStation extends Station {
     /**
      * Creates an idle sell station at level 1, with nothing on sale.
      *
-     * @param surface surface stock the station sells from
+     * @param surface         surface stock the station sells from
      * @param priceCalculator gives the price of each batch sold
-     * @param wallet receives the coins of each sale
-     * @param config game balance values
+     * @param wallet          receives the coins of each sale
+     * @param config          game balance values
      * @throws IllegalArgumentException if an argument is {@code null}
      */
     public SellStation(Storage surface, PriceCalculator priceCalculator, Wallet wallet, BalanceConfig config) {
@@ -49,8 +49,13 @@ public class SellStation extends Station {
     }
 
     @Override
+    public double getBaseUpgradeCost() {
+        return config.getSellBaseCost();
+    }
+
+    @Override
     public double getUpgradeCost() {
-        return config.getSellBaseCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
+        return getBaseUpgradeCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
     }
 
     /**
@@ -79,6 +84,7 @@ public class SellStation extends Station {
         return new StationStats(
                 config.getSellSpeed(),
                 config.getSellBaseCapacity() * getLevel()
+                        * milestoneBonus(config.getMilestoneInterval(), config.getTransportMilestoneMultiplier())
         );
     }
 

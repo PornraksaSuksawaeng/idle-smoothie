@@ -38,6 +38,11 @@ class StationTest {
         }
 
         @Override
+        public double getBaseUpgradeCost() {
+            return 0;
+        }
+        
+        @Override
         public double getUpgradeCost() {
             return 0;
         }

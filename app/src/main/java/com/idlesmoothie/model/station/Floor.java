@@ -114,13 +114,19 @@ public class Floor extends Station {
     protected StationStats baseStats() {
         return new StationStats(
                 config.getFloorTripSpeed(),
-                config.getFloorBaseCarry() * (1 + index) * getLevel()
+                config.getFloorBaseCarry() * Math.pow(config.getFloorDepthProductionGrowth(), index) * getLevel()
+                        * milestoneBonus(config.getMilestoneInterval(), config.getMilestoneMultiplier())
         );
     }
 
     @Override
+    public double getBaseUpgradeCost() {
+        return config.getFloorBaseCost() * Math.pow(config.getFloorDepthCostGrowth(), index);
+    }
+
+    @Override
     public double getUpgradeCost() {
-        return config.getFloorBaseCost() * (1 + index) * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
+        return getBaseUpgradeCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
     }
 
     /**
