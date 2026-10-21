@@ -93,8 +93,9 @@ public class Elevator extends Station {
     @Override
     protected StationStats baseStats() {
         return new StationStats(
-                config.getElevatorMoveSpeed(),
+                config.getElevatorMoveSpeed() * (1 + config.getElevatorSpeedGrowth() * (getLevel() - 1)),
                 config.getElevatorBaseCapacity() * getLevel()
+                        * milestoneBonus(config.getMilestoneInterval(), config.getTransportMilestoneMultiplier())
         );
     }
 

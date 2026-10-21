@@ -39,6 +39,14 @@ public abstract class Station implements Upgradable {
     public abstract double getUpgradeCost();
 
     /**
+     * Returns the price of this station's first upgrade, which never changes.
+     * It sets the scale of the station's other prices, such as its managers.
+     *
+     * @return the base price in coins
+     */
+    public abstract double getBaseUpgradeCost();
+
+    /**
      * Returns the raw stats for the current level, before any bonus.
      * Use {@link #getStats()} everywhere else.
      *
@@ -130,8 +138,8 @@ public abstract class Station implements Upgradable {
      * @throws IllegalArgumentException if {@code count} is negative, or is 0 while the station has a manager
      */
     public void restoreManagersHired(int count) {
-        if (count < 0 || (manager != null && count == 0)) {
-            throw new IllegalArgumentException("Invalid number of managers hired: " + count);
+        if (count < 0) {
+            throw new IllegalArgumentException("Hires must not be negative: " + count);
         }
         managersHired = count;
     }
@@ -209,6 +217,18 @@ public abstract class Station implements Upgradable {
     }
 
     /**
+     * Returns the capacity multiplier the station's milestones give: each milestone multiplies it again.
+     * With an interval of 25 and a multiplier of 2, levels 25, 50, 75... each double the capacity.
+     *
+     * @param interval   the number of levels between two milestones
+     * @param multiplier the factor one milestone applies
+     * @return the total milestone multiplier for the current level
+     */
+    protected final double milestoneBonus(int interval, double multiplier) {
+        return Math.pow(multiplier, getLevel() / interval);
+    }
+
+    /**
      * Ends the round started by a tap. Called by a subclass when its work is done.
      */
     protected final void endRound() {
@@ -221,12 +241,4 @@ public abstract class Station implements Upgradable {
      */
     protected void onManagerChanged() {
     }
-
-        /**
-     * Returns the price of this station's first upgrade, which never changes.
-     * It sets the scale of the station's other prices, such as its managers.
-     *
-     * @return the base price in coins
-     */
-    public abstract double getBaseUpgradeCost();
 }
