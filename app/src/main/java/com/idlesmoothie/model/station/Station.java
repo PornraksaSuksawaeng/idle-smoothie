@@ -221,4 +221,12 @@ public abstract class Station implements Upgradable {
      */
     protected void onManagerChanged() {
     }
+
+        /**
+     * Returns the price of this station's first upgrade, which never changes.
+     * It sets the scale of the station's other prices, such as its managers.
+     *
+     * @return the base price in coins
+     */
+    public abstract double getBaseUpgradeCost();
 }

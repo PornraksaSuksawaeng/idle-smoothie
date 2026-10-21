@@ -299,4 +299,15 @@ class FloorTest {
 
         assertEquals(before + floor.getStats().getCapacity(), floor.getStoredAmount(), DELTA);
     }
+
+    @Test
+    void baseUpgradeCostDoesNotChangeWithLevel() {
+        Floor floor = new Floor(2, Fruit.STRAWBERRY, config);
+        double base = floor.getBaseUpgradeCost();
+
+        floor.upgrade(20);
+
+        assertEquals(config.getFloorBaseCost() * 3, base, DELTA);
+        assertEquals(base, floor.getBaseUpgradeCost(), DELTA);
+    }
 }

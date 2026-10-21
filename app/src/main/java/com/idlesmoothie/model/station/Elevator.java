@@ -45,8 +45,13 @@ public class Elevator extends Station {
     }
 
     @Override
+    public double getBaseUpgradeCost() {
+        return config.getElevatorBaseCost();
+    }
+
+    @Override
     public double getUpgradeCost() {
-        return config.getElevatorBaseCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
+        return getBaseUpgradeCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
     }
 
     /**

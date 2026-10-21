@@ -235,4 +235,15 @@ class ElevatorTest {
 
         assertEquals(shallow / 2, elevator.getThroughput(), DELTA);
     }
+
+    @Test
+    void baseUpgradeCostDoesNotChangeWithLevel() {
+        Elevator elevator = new Elevator(floors, surface, config);
+        double base = elevator.getBaseUpgradeCost();
+
+        elevator.upgrade(20);
+
+        assertEquals(config.getElevatorBaseCost() * 3, base, DELTA);
+        assertEquals(base, elevator.getBaseUpgradeCost(), DELTA);
+    }
 }

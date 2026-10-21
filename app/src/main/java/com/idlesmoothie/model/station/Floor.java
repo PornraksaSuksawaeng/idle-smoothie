@@ -119,8 +119,13 @@ public class Floor extends Station {
     }
 
     @Override
+    public double getBaseUpgradeCost() {
+        return config.getFloorBaseCost() * (1 + index);
+    }
+
+    @Override
     public double getUpgradeCost() {
-        return config.getFloorBaseCost() * (1 + index) * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
+        return getBaseUpgradeCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
     }
 
     /**

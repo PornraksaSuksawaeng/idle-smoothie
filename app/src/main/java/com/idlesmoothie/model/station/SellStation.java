@@ -49,8 +49,13 @@ public class SellStation extends Station {
     }
 
     @Override
+    public double getBaseUpgradeCost() {
+        return config.getSellBaseCost();
+    }
+
+    @Override
     public double getUpgradeCost() {
-        return config.getSellBaseCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
+        return getBaseUpgradeCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
     }
 
     /**

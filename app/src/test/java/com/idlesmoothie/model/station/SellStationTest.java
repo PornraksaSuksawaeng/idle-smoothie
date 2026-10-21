@@ -1,17 +1,17 @@
 package com.idlesmoothie.model.station;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+
 import com.idlesmoothie.core.BalanceConfig;
 import com.idlesmoothie.model.economy.PriceCalculator;
 import com.idlesmoothie.model.economy.Wallet;
 import com.idlesmoothie.model.resource.Fruit;
 import com.idlesmoothie.model.resource.SmoothieBatch;
 import com.idlesmoothie.model.resource.Storage;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SellStationTest {
 
@@ -246,5 +246,16 @@ class SellStationTest {
 
         assertEquals(capacity(), surface.getAmount(), DELTA);
         assertTrue(wallet.getCoins() > capacity() * UNIT_PRICE);
+    }
+
+    @Test
+    void baseUpgradeCostDoesNotChangeWithLevel() {
+        SellStation station = new SellStation(surface, prices, wallet, config);
+        double base = station.getBaseUpgradeCost();
+
+        station.upgrade(20);
+
+        assertEquals(config.getSellBaseCost() * 3, base, DELTA);
+        assertEquals(base, station.getBaseUpgradeCost(), DELTA);
     }
 }
