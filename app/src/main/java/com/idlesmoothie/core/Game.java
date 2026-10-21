@@ -236,8 +236,8 @@ public class Game {
     }
 
     /**
-     * Returns the price of a manager for the station: a multiple of its next upgrade,
-     * growing with each manager already hired for it.
+     * Returns the price of a manager for the station: a multiple of its first upgrade price,
+     * growing with each manager already hired for it. Upgrading the station does not change it.
      *
      * @param station the station to automate
      * @return the price in coins
@@ -247,8 +247,8 @@ public class Game {
         if (station == null) {
             throw new IllegalArgumentException("Station must not be null");
         }
-        return station.getUpgradeCost() * config.getManagerCostMultiplier()
-                * Math.pow(config.getManagerCostGrowth(), station.getManagersHired());
+        return station.getBaseUpgradeCost() * config.getManagerCostMultiplier()
+            * Math.pow(config.getManagerCostGrowth(), station.getManagersHired());
     }
 
     /**

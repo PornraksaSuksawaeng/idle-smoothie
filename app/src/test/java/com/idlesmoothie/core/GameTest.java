@@ -240,11 +240,23 @@ class GameTest {
     }
 
     @Test
-    void firstManagerCostsAMultipleOfTheNextUpgrade() {
+    void firstManagerCostsAMultipleOfTheBaseUpgrade() {
         Game game = newGame();
         Station floor = game.getMine().getFloors().get(0);
 
-        assertEquals(floor.getUpgradeCost() * config.getManagerCostMultiplier(), game.getManagerCost(floor), DELTA);
+        assertEquals(floor.getBaseUpgradeCost() * config.getManagerCostMultiplier(),
+                game.getManagerCost(floor), DELTA);
+    }
+
+    @Test
+    void upgradingAStationDoesNotChangeItsManagerPrice() {
+        Game game = newGame();
+        Station floor = game.getMine().getFloors().get(0);
+        double before = game.getManagerCost(floor);
+
+        floor.upgrade(40);
+
+        assertEquals(before, game.getManagerCost(floor), DELTA);
     }
 
     @Test
