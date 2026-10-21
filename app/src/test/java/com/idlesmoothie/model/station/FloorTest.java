@@ -100,7 +100,7 @@ class FloorTest {
         double first = new Floor(0, Fruit.MANGO, config).getStats().getCapacity();
         double fifth = new Floor(4, Fruit.MANGO, config).getStats().getCapacity();
 
-        assertEquals(5 * first, fifth, DELTA);
+        assertEquals(Math.pow(config.getFloorDepthProductionGrowth(), 4) * first, fifth, DELTA);
     }
 
     @Test
@@ -123,7 +123,8 @@ class FloorTest {
     void deeperFloorCostsMore() {
         Floor floor = new Floor(2, Fruit.STRAWBERRY, config);
 
-        assertEquals(3 * config.getFloorBaseCost(), floor.getUpgradeCost(), DELTA);
+        assertEquals(Math.pow(config.getFloorDepthCostGrowth(), 2) * config.getFloorBaseCost(),
+                floor.getUpgradeCost(), DELTA);
     }
 
     @Test
@@ -302,12 +303,25 @@ class FloorTest {
 
     @Test
     void baseUpgradeCostDoesNotChangeWithLevel() {
-        Floor floor = new Floor(2, Fruit.STRAWBERRY, config);
-        double base = floor.getBaseUpgradeCost();
+        Floor station = new Floor(2, Fruit.STRAWBERRY, config);
+        double base = station.getBaseUpgradeCost();
 
-        floor.upgrade(20);
+        station.upgrade(20);
 
-        assertEquals(config.getFloorBaseCost() * 3, base, DELTA);
-        assertEquals(base, floor.getBaseUpgradeCost(), DELTA);
+        assertEquals(config.getFloorBaseCost() * Math.pow(config.getFloorDepthCostGrowth(), 2), base, DELTA);
+        assertEquals(base, station.getBaseUpgradeCost(), DELTA);
+    }
+
+    @Test
+    void milestoneMultipliesCapacity() {
+        Floor before = new Floor(0, Fruit.STRAWBERRY, config);
+        before.upgrade(config.getMilestoneInterval() - 2);
+        Floor after = new Floor(0, Fruit.STRAWBERRY, config);
+        after.upgrade(config.getMilestoneInterval() - 1);
+
+        double perLevelBefore = before.getStats().getCapacity() / before.getLevel();
+        double perLevelAfter = after.getStats().getCapacity() / after.getLevel();
+
+        assertEquals(config.getMilestoneMultiplier() * perLevelBefore, perLevelAfter, DELTA);
     }
 }

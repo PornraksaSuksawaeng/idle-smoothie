@@ -255,7 +255,17 @@ class SellStationTest {
 
         station.upgrade(20);
 
-        assertEquals(config.getSellBaseCost() * 3, base, DELTA);
+        assertEquals(config.getSellBaseCost(), base, DELTA);
         assertEquals(base, station.getBaseUpgradeCost(), DELTA);
+    }
+
+    @Test
+    void milestoneMultipliesCapacity() {
+        SellStation station = new SellStation(surface, prices, wallet, config);
+        station.upgrade(config.getMilestoneInterval() - 1);
+
+        double expected = capacity() * config.getMilestoneInterval() * config.getTransportMilestoneMultiplier();
+
+        assertEquals(expected, station.getStats().getCapacity(), DELTA);
     }
 }

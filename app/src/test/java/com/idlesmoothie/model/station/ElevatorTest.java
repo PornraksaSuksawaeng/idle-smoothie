@@ -81,7 +81,8 @@ class ElevatorTest {
 
         elevator.upgrade(2);
 
-        assertEquals(config.getElevatorMoveSpeed(), elevator.getStats().getSpeed(), DELTA);
+        assertEquals(config.getElevatorMoveSpeed() * (1 + 2 * config.getElevatorSpeedGrowth()),
+                elevator.getStats().getSpeed(), DELTA);
         assertEquals(3 * config.getElevatorBaseCapacity(), elevator.getStats().getCapacity(), DELTA);
     }
 
@@ -238,12 +239,23 @@ class ElevatorTest {
 
     @Test
     void baseUpgradeCostDoesNotChangeWithLevel() {
+        Elevator station = new Elevator(floors, surface, config);
+        double base = station.getBaseUpgradeCost();
+
+        station.upgrade(20);
+
+        assertEquals(config.getElevatorBaseCost(), base, DELTA);
+        assertEquals(base, station.getBaseUpgradeCost(), DELTA);
+    }
+
+    @Test
+    void milestoneMultipliesCapacity() {
         Elevator elevator = new Elevator(floors, surface, config);
-        double base = elevator.getBaseUpgradeCost();
+        elevator.upgrade(config.getMilestoneInterval() - 1);
 
-        elevator.upgrade(20);
+        double expected = config.getElevatorBaseCapacity() * config.getMilestoneInterval()
+                * config.getTransportMilestoneMultiplier();
 
-        assertEquals(config.getElevatorBaseCost() * 3, base, DELTA);
-        assertEquals(base, elevator.getBaseUpgradeCost(), DELTA);
+        assertEquals(expected, elevator.getStats().getCapacity(), DELTA);
     }
 }
