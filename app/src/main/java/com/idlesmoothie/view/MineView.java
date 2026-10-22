@@ -286,7 +286,7 @@ public class MineView implements Renderable {
         gc.fillRect(getCrateX(), boxY, BOX_SIZE, BOX_SIZE);
         gc.setFill(EXTRACTOR_COLOR);
         gc.fillRect(getExtractorX(), boxY, BOX_SIZE, BOX_SIZE);
-        drawLabel(String.format("%.1f", floor.getStoredAmount()), getCrateX(), boxY - ROOM_MARGIN);
+        drawLabel(NumberFormatter.format(floor.getStoredAmount()), getCrateX(), boxY - ROOM_MARGIN);
 
         for (Pulpie pulpie : floor.getPulpies()) {
             drawPulpie(pulpie, y);
@@ -325,7 +325,7 @@ public class MineView implements Renderable {
         double textY = y + ROOM_HEIGHT / 2;
         gc.fillText("Unlock floor " + (index + 1), getCrateX(), textY);
         String detail = mine.canUnlockNextFloor()
-                ? String.format("Cost: %.0f coins", mine.getNextFloorCost())
+                ? "Cost: " + NumberFormatter.format(mine.getNextFloorCost()) + " coins"
                 : "Barrier: upgrade floor " + index + " first";
         gc.fillText(detail, getCrateX(), textY + ROOM_MARGIN);
     }
@@ -373,7 +373,7 @@ public class MineView implements Renderable {
         gc.setFill(CABIN_COLOR);
         gc.fillRect(CABIN_MARGIN, y, SHAFT_WIDTH - 2 * CABIN_MARGIN, CABIN_HEIGHT);
         gc.setFill(Color.BLACK);
-        gc.fillText(String.format("%.1f", elevator.getCabinAmount()), 2 * CABIN_MARGIN, y + CABIN_HEIGHT / 2);
+        gc.fillText(NumberFormatter.format(elevator.getCabinAmount()), 2 * CABIN_MARGIN, y + CABIN_HEIGHT / 2);
     }
 
     /**
@@ -392,7 +392,7 @@ public class MineView implements Renderable {
 
     private void drawSurfaceStock() {
         double y = SURFACE_HEIGHT - ROOM_MARGIN - scrollY;
-        drawLabel(String.format("Stock: %.1f", mine.getSurfaceAmount()), getRoomX(), y);
+        drawLabel("Stock: " + NumberFormatter.format(mine.getSurfaceAmount()), getRoomX(), y);
     }
 
     /**
@@ -408,7 +408,7 @@ public class MineView implements Renderable {
         gc.fillRect(getBarX(), y + BAR_SIZE - CABIN_MARGIN, BAR_SIZE * sellStation.getProgress(), CABIN_MARGIN);
         gc.setFill(Color.WHITE);
         gc.fillText("BAR", getBarX() + CABIN_MARGIN, y + 2 * CABIN_MARGIN);
-        drawLabel(String.format("%.1f", sellStation.getOnSaleAmount()), getBarX(), y - CABIN_MARGIN);
+        drawLabel(NumberFormatter.format(sellStation.getOnSaleAmount()), getBarX(), y - CABIN_MARGIN);
     }
 
     /**

@@ -92,7 +92,7 @@ public class ShopView implements Renderable {
             showManager(managerLabel, "Current: ", manager);
         }
         String replace = manager == null ? "" : " (replaces current)";
-        hireButton.setText(String.format("Hire: %.0f coins%s", game.getManagerCost(selected), replace));
+        hireButton.setText("Hire: " + NumberFormatter.format(game.getManagerCost(selected)) + " coins" + replace);
         hireButton.setDisable(!game.canHireManager(selected));
     }
 
