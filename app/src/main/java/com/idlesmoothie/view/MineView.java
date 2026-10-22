@@ -41,9 +41,9 @@ import javafx.scene.text.TextAlignment;
  * and is drawn at {@code worldY - scrollY}.
  * Clicking a floor sends its Pulpies on a trip, clicking the shaft calls the elevator
  * and clicking the bar on the surface sells the surface stock.
- * Every station has a small "Lv" button that opens its upgrade popup
- * and a "Mgr" button that opens its manager shop.
- * A hired manager stands next to its station, in the color of its rarity.
+ * Every station has a small "Lv" button that opens its upgrade popup.
+ * A hired manager stands next to its station, in the color of its rarity, and a ghost waits there
+ * while none is hired; clicking either one opens the manager shop.
  */
 public class MineView implements Renderable {
 
@@ -111,6 +111,11 @@ public class MineView implements Renderable {
     private static final double MANAGER_SPRITE_HEIGHT = PULPIE_SPRITE_SIZE;
     private static final double BREATH_AMPLITUDE = 0.03;
     private static final double BREATH_PERIOD_SECONDS = 2.4;
+    // The ghost shown where no manager is hired: see-through, brighter when the player can hire one.
+    private static final double GHOST_OPACITY = 0.35;
+    private static final double GHOST_HIREABLE_OPACITY = 0.6;
+    private static final double GHOST_FLOAT = 4;
+    private static final double GHOST_FLOAT_PERIOD_SECONDS = 3.2;
     private static final double CABIN_MARGIN = 8;
     private static final double CABIN_HEIGHT = 60;
     // Share of the shaft width that puts the guide clamps of the cabin image (at 26% and 74% of the cabin)
@@ -254,7 +259,7 @@ public class MineView implements Renderable {
      * @param game         the game read to draw the mine
      * @param controller   receives the player's clicks
      * @param upgradePanel popup opened by the "Lv" buttons
-     * @param shopView     popup opened by the "Mgr" buttons
+     * @param shopView     popup opened by a click on a manager or its ghost
      */
     public MineView(double width, double height, Game game, UpgradeController controller,
             UpgradePanel upgradePanel, ShopView shopView) {
@@ -332,7 +337,6 @@ public class MineView implements Renderable {
                 drawManager(station);
             }
             drawLevelButton(station);
-            drawManagerButton(station);
         }
     }
 
@@ -348,7 +352,8 @@ public class MineView implements Renderable {
     }
 
     /**
-     * Finds what was clicked, the "Lv" buttons first since they lie on top of the stations.
+     * Finds what was clicked: the "Lv" buttons first since they lie on top of the stations, then the
+     * managers (or their empty place), which open the manager shop.
      */
     private void onClick(double x, double screenY) {
         double worldY = screenY + scrollY;
@@ -357,7 +362,9 @@ public class MineView implements Renderable {
                 upgradePanel.show(station);
                 return;
             }
-            if (getManagerButton(station).contains(x, worldY)) {
+        }
+        for (Station station : getStations()) {
+            if (getManagerArea(station).contains(x, worldY)) {
                 shopView.show(station);
                 return;
             }
@@ -1061,57 +1068,45 @@ public class MineView implements Renderable {
     }
 
     /**
-     * Draws the "Mgr" button of a station, green when the player can afford a manager.
+     * @return where the manager of the station stands, in world coordinates: in front of the crate on a
+     *         floor, next to the shaft or to the bar on the surface. Clicking there opens the manager shop,
+     *         whether a manager is hired or not.
      */
-    private void drawManagerButton(Station station) {
-        Box box = getManagerButton(station);
-        double y = box.y() - scrollY;
-        gc.setFill(game.canHireManager(station) ? BUYABLE_COLOR : LOCKED_COLOR);
-        gc.fillRect(box.x(), y, box.width(), box.height());
-        gc.setFill(Color.WHITE);
-        gc.fillText("Mgr", box.x() + CABIN_MARGIN, y + LEVEL_HEIGHT - CABIN_MARGIN);
-    }
-
-    /**
-     * @return where the "Mgr" button of the station is, in world coordinates: next to its "Lv" button
-     */
-    private Box getManagerButton(Station station) {
-        Box level = getLevelButton(station);
-        return switch (station.getType()) {
-            case FLOOR -> new Box(getExtractorX() + BOX_SIZE - 2 * LEVEL_WIDTH - CABIN_MARGIN,
-                    floorY(((Floor) station).getIndex()) + EDGE_HEIGHT + CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
-            // Above where its manager stands, like the bar's, so it leaves room for the bar's manager.
-            case ELEVATOR -> new Box(getElevatorManagerX() + (MANAGER_SPACE - LEVEL_WIDTH) / 2,
-                SURFACE_HEIGHT - getManagerHeight() - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
-            // Left of the bar, above where its manager stands, so it leaves the counter and its progress free.
-            case SELL -> new Box(getBarX() - LEVEL_WIDTH - MANAGER_GAP,
-                    SURFACE_HEIGHT - getManagerHeight() - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
-        };
-    }
-
-    /**
-     * Draws the manager of the station, if any: in front of the crate on a floor, next to the shaft
-     * or to the bar on the surface. It is the sprite of its rarity, breathing slowly, or a person-sized
-     * rectangle in the color of its rarity if the sheet does not exist yet.
-     */
-    private void drawManager(Station station) {
-        Manager manager = station.getManager();
-        if (manager == null) {
-            return;
-        }
+    private Box getManagerArea(Station station) {
         double x = switch (station.getType()) {
             case FLOOR -> getManagerX();
             case ELEVATOR -> getElevatorManagerX();
             case SELL -> getBarX() - MANAGER_SPACE - MANAGER_GAP;
         };
         double groundY = station instanceof Floor floor ? floorY(floor.getIndex()) + roomHeight : SURFACE_HEIGHT;
+        return new Box(x, groundY - getManagerHeight(), MANAGER_SPACE, getManagerHeight());
+    }
+
+    /**
+     * Draws the manager of the station: the sprite of its rarity, breathing slowly, or a person-sized
+     * rectangle in the color of its rarity if the sheet does not exist yet. Without a manager, draws a
+     * floating ghost, brighter when the player can hire one, or nothing if the ghost sheet does not exist.
+     */
+    private void drawManager(Station station) {
+        Box area = getManagerArea(station);
+        double bodyX = area.x() + MANAGER_SPACE / 2;
+        double groundY = area.y() + area.height() - scrollY;
+        Manager manager = station.getManager();
+        if (manager == null) {
+            if (managerSprites.hasGhost()) {
+                double opacity = game.canHireManager(station) ? GHOST_HIREABLE_OPACITY : GHOST_OPACITY;
+                double lift = GHOST_FLOAT * (1 + Math.sin(2 * Math.PI * (System.nanoTime() / 1e9
+                        / GHOST_FLOAT_PERIOD_SECONDS + phase(station)))) / 2;
+                managerSprites.drawGhost(gc, bodyX, groundY - lift, breath(station), opacity);
+            }
+            return;
+        }
         if (managerSprites.isLoaded()) {
-            managerSprites.draw(gc, manager.getRarity(), x + MANAGER_SPACE / 2, groundY - scrollY, breath(station));
+            managerSprites.draw(gc, manager.getRarity(), bodyX, groundY, breath(station));
             return;
         }
         gc.setFill(Color.web(manager.getRarity().getColorHex()));
-        gc.fillRect(x + (MANAGER_SPACE - MANAGER_WIDTH) / 2, groundY - MANAGER_HEIGHT - scrollY,
-                MANAGER_WIDTH, MANAGER_HEIGHT);
+        gc.fillRect(bodyX - MANAGER_WIDTH / 2, groundY - MANAGER_HEIGHT, MANAGER_WIDTH, MANAGER_HEIGHT);
     }
 
     /**
@@ -1127,8 +1122,14 @@ public class MineView implements Renderable {
      */
     private static double breath(Station station) {
         double seconds = System.nanoTime() / 1e9;
-        double phase = System.identityHashCode(station) % 1000 / 1000.0;
-        return 1 + BREATH_AMPLITUDE * Math.sin(2 * Math.PI * (seconds / BREATH_PERIOD_SECONDS + phase));
+        return 1 + BREATH_AMPLITUDE * Math.sin(2 * Math.PI * (seconds / BREATH_PERIOD_SECONDS + phase(station)));
+    }
+
+    /**
+     * @return a fixed offset between 0 and 1 for the station, so its manager does not move in step with the others
+     */
+    private static double phase(Station station) {
+        return System.identityHashCode(station) % 1000 / 1000.0;
     }
 
     /**

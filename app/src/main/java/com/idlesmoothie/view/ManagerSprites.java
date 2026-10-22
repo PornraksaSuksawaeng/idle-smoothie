@@ -15,6 +15,7 @@ import javafx.scene.image.WritableImage;
  * The sheet is one row of cells, from COMMON to MYTHIC, each with the manager facing the player,
  * its feet on the same ground line and its body centered. If the sheet does not exist yet, or does not
  * hold one cell per rarity, no sprite is available and the callers keep their placeholder.
+ * A second sheet, with a single cell, holds the ghost shown where no manager is hired yet.
  */
 public final class ManagerSprites {
 
@@ -24,8 +25,10 @@ public final class ManagerSprites {
     private static final double CELL_GROUND_Y = 236;
     private static final double CELL_BODY_X = 128;
     private static final String PATH = "/images/managers/rarities.png";
+    private static final String GHOST_PATH = "/images/managers/ghost.png";
 
     private final Map<Rarity, Image> sprites = new EnumMap<>(Rarity.class);
+    private final Image ghost;
     private final double height;
 
     /**
@@ -35,7 +38,8 @@ public final class ManagerSprites {
      */
     public ManagerSprites(double height) {
         this.height = height;
-        Image sheet = loadSheet();
+        this.ghost = loadSheet(GHOST_PATH);
+        Image sheet = loadSheet(PATH);
         Rarity[] rarities = Rarity.values();
         if (sheet == null || Math.round(sheet.getWidth() / getWidth()) != rarities.length) {
             return;
@@ -79,11 +83,37 @@ public final class ManagerSprites {
      * @param squash  vertical stretch, 1 for the sprite as drawn
      */
     public void draw(GraphicsContext gc, Rarity rarity, double bodyX, double groundY, double squash) {
+        drawCell(gc, sprites.get(rarity), bodyX, groundY, squash, 1);
+    }
+
+    /**
+     * @return {@code true} if the ghost of an empty manager slot was loaded
+     */
+    public boolean hasGhost() {
+        return ghost != null;
+    }
+
+    /**
+     * Draws the ghost of an empty manager slot, see-through, like {@link #draw}.
+     *
+     * @param gc      where to draw
+     * @param bodyX   screen x of the body center
+     * @param groundY screen y of the ground under the feet
+     * @param squash  vertical stretch, 1 for the sprite as drawn
+     * @param opacity from 0 (invisible) to 1 (solid)
+     */
+    public void drawGhost(GraphicsContext gc, double bodyX, double groundY, double squash, double opacity) {
+        drawCell(gc, ghost, bodyX, groundY, squash, opacity);
+    }
+
+    private void drawCell(GraphicsContext gc, Image image, double bodyX, double groundY, double squash,
+            double opacity) {
         double scale = height / CELL_HEIGHT;
         gc.save();
+        gc.setGlobalAlpha(opacity);
         gc.translate(bodyX, groundY);
         gc.scale(2 - squash, squash);
-        gc.drawImage(sprites.get(rarity), -CELL_BODY_X * scale, -CELL_GROUND_Y * scale, getWidth(), height);
+        gc.drawImage(image, -CELL_BODY_X * scale, -CELL_GROUND_Y * scale, getWidth(), height);
         gc.restore();
     }
 
@@ -94,8 +124,8 @@ public final class ManagerSprites {
     /**
      * @return the sheet scaled to {@code height} pixels high, or {@code null} if the file does not exist yet
      */
-    private Image loadSheet() {
-        try (InputStream stream = getClass().getResourceAsStream(PATH)) {
+    private Image loadSheet(String path) {
+        try (InputStream stream = getClass().getResourceAsStream(path)) {
             return stream == null ? null : new Image(stream, 0, height, true, true);
         } catch (IOException e) {
             return null;
