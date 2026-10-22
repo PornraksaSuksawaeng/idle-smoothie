@@ -79,6 +79,13 @@ public class Floor extends Station {
     }
 
     /**
+     * @return {@code true} if the crate holds no smoothie, so the view can draw it empty
+     */
+    public boolean isCrateEmpty() {
+        return crate.isEmpty();
+    }
+
+    /**
      * Takes smoothie out of the crate, oldest first. Used by the elevator.
      *
      * @param amount maximum quantity to take

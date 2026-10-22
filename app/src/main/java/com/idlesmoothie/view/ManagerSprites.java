@@ -55,6 +55,13 @@ public final class ManagerSprites {
     }
 
     /**
+     * @return the most a manager rises above the ground on screen, hat included
+     */
+    public double getStandingHeight() {
+        return CELL_GROUND_Y * height / CELL_HEIGHT;
+    }
+
+    /**
      * @return the sprite of the rarity, or {@code null} if the sheet was not loaded
      */
     public Image get(Rarity rarity) {

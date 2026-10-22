@@ -19,7 +19,6 @@ import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Mine;
 import com.idlesmoothie.model.station.SellStation;
 import com.idlesmoothie.model.station.Station;
-import com.idlesmoothie.model.station.StationType;
 import com.idlesmoothie.view.PulpieSprites.Animation;
 
 import javafx.geometry.VPos;
@@ -27,6 +26,9 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.Stop;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -53,6 +55,29 @@ public class MineView implements Renderable {
     private static final double ROOM_IMAGE_HEIGHT = 520;
     private static final double ROOM_IMAGE_GROUND = 245;
     private static final double ROOM_IMAGE_FLOOR_END = 385;
+    // Center of the drill body of the extractor in the room image, in image pixels: the floor "Lv" button sits on it.
+    private static final double ROOM_IMAGE_EXTRACTOR_X = 820;
+    private static final double ROOM_IMAGE_EXTRACTOR_Y = 140;
+    // Where the floor sign hangs in the room image, in image pixels: between the shaft and the first torch,
+    // from the bottom of the ceiling beam.
+    private static final double ROOM_IMAGE_SIGN_X = 230;
+    private static final double ROOM_IMAGE_CEILING_Y = 38;
+    // The sign is as wide as its number plus this margin on each side, and never narrower than SIGN_MIN_WIDTH.
+    private static final double SIGN_PADDING_X = 8;
+    private static final double SIGN_MIN_WIDTH = 34;
+    private static final double SIGN_HEIGHT = 24;
+    private static final double SIGN_ROPE_LENGTH = 8;
+    // Distance of each rope from the side of the sign.
+    private static final double SIGN_ROPE_INSET = 7;
+    private static final double SIGN_RADIUS = 7;
+    private static final double SIGN_BORDER_WIDTH = 2;
+    private static final double SIGN_NAIL_RADIUS = 1.5;
+    private static final Color SIGN_WOOD_LIGHT = Color.web("#C98A4B");
+    private static final Color SIGN_WOOD_DARK = Color.web("#9A6232");
+    private static final Color SIGN_ROPE_COLOR = Color.web("#5C3A1E");
+    private static final Color SIGN_NAIL_COLOR = Color.web("#D8D8D8");
+    private static final double SIGN_FONT_SIZE = 16;
+    private static final Font SIGN_FONT = loadSignFont();
     private static final double EDGE_HEIGHT = 20;
     private static final double GRASS_HEIGHT = 16;
     private static final double GROUND_RAISE = 7;
@@ -60,6 +85,10 @@ public class MineView implements Renderable {
     private static final double SHAFT_WIDTH = 110;
     private static final double ROOM_MARGIN = 20;
     private static final double BOX_SIZE = 40;
+    // The crate image is a bit wider than the box the Pulpies walk to, and centered on it.
+    private static final double CRATE_WIDTH = 52;
+    // Distance between the top of the crate and the middle of the quantity written above it.
+    private static final double CRATE_TEXT_GAP = 13;
     private static final double PULPIE_SIZE = 24;
     private static final double PULPIE_SPRITE_SIZE = 80;
     /**
@@ -108,6 +137,43 @@ public class MineView implements Renderable {
     private static final Font CABIN_FONT = Font.font("System", FontWeight.BOLD, 12);
     private static final double TEXT_OUTLINE_WIDTH = 3;
     private static final double BAR_SIZE = 100;
+    // The bar image is drawn this wide, standing on the surface ground, centered at this share of the window width.
+    private static final double BAR_WIDTH = 175;
+    private static final double BAR_CENTER_X = 0.69;
+    // How far the feet of the bar go below the top of the ground, so they stand in the grass instead of above it.
+    private static final double BAR_SINK = 5;
+    // The customers waiting at the right of the bar: smaller Pulpies of other fruits, in their idle animation,
+    // facing the bar. The last one is cut by the window edge, as if the line went on.
+    private static final double CUSTOMER_SIZE = 64;
+    private static final double CUSTOMER_FIRST_GAP = 14;
+    private static final double CUSTOMER_SPACING = 30;
+    private static final Fruit[] FIRST_CUSTOMERS = {Fruit.KIWI, Fruit.MANGO, Fruit.BLUEBERRY};
+    // After each sale, the line moves one place forward in this time, while the served customer
+    // walks away to the right at this speed, in pixels per second.
+    private static final double LINE_MOVE_SECONDS = 0.6;
+    private static final double CUSTOMER_WALK_SPEED = 70;
+    // The served customers walk a bit lower than the line, as if closer to the screen, so they pass in front of it.
+    private static final double CUSTOMER_LEAVE_LOWER = 6;
+    // Shifts the idle animation of each customer so they do not move all together.
+    private static final int CUSTOMER_FRAME_SHIFT = 3;
+    // Places on the bar image, as fractions of its width and height: the back wall between the juice machine
+    // and the shelf, where the "Lv" button sits, and the metal strip of the counter, where the sale progress shows.
+    private static final double BAR_WALL_X = 0.52;
+    private static final double BAR_WALL_Y = 0.535;
+    private static final double BAR_STRIP_LEFT = 0.19;
+    private static final double BAR_STRIP_RIGHT = 0.955;
+    private static final double BAR_STRIP_Y = 0.743;
+    private static final double BAR_PROGRESS_HEIGHT = 6;
+    private static final Color BAR_PROGRESS_TRACK = Color.rgb(20, 12, 6, 0.6);
+    private static final double BAR_TEXT_GAP = 18;
+    // Each sale makes its coins rise from the cash register of the bar image, then fade out.
+    private static final double BAR_REGISTER_X = 0.85;
+    private static final double BAR_REGISTER_Y = 0.6;
+    private static final double SALE_FLOAT_SECONDS = 1;
+    private static final double SALE_FLOAT_RISE = 50;
+    private static final double NANOS_PER_SECOND = 1e9;
+    private static final Color SALE_COLOR = Color.web("#7BE04A");
+    private static final Font SALE_FONT = Font.font("System", FontWeight.BOLD, 15);
     private static final double LEVEL_WIDTH = 64;
     private static final double LEVEL_HEIGHT = 24;
     private static final double COIN_SIZE = 14;
@@ -121,7 +187,14 @@ public class MineView implements Renderable {
     private static final Color BAR_COLOR = Color.web("#E85D9A");
     private static final Color PROGRESS_COLOR = Color.web("#6CC644");
     private static final Color LABEL_BACKGROUND = Color.rgb(0, 0, 0, 0.6);
-    private static final Color STOCK_BACKGROUND = Color.rgb(20, 12, 6, 0.8);
+    private static final double STOCK_TEXT_GAP = 16;
+    private static final double STOCK_ICON_SIZE = 26;
+    private static final double STOCK_ICON_GAP = 2;
+    // A soft pill behind the stock, in the dark wood color of the headframe, light enough to let the sky through.
+    private static final Color STOCK_PILL_COLOR = Color.rgb(61, 35, 20, 0.35);
+    private static final double STOCK_PILL_PADDING_X = 8;
+    private static final double STOCK_PILL_PADDING_Y = 2;
+    private static final Font STOCK_FONT = Font.font("System", FontWeight.BOLD, 15);
     private static final Color GRASS_COLOR = Color.web("#5DAA3C");
     private static final Color TOP_DIRT_COLOR = Color.web("#B5845A");
     private static final Color BARRIER_COLOR = Color.web("#6B6B6B");
@@ -145,7 +218,21 @@ public class MineView implements Renderable {
     private final Image shaftBottomImage;
     private final Image elevatorImage;
     private final Image headframeImage;
+    private final Image smoothieIcon;
+    private final Image emptyCrateImage;
+    private final Image barImage;
+    // The "+coins" texts rising from the bar, one per sale, oldest first.
+    private final List<SaleFloat> saleFloats = new ArrayList<>();
+    private int salesSeen;
+    // The customers waiting at the bar, the first one closest to it, and the ones walking away after their sale.
+    private final List<Fruit> customers = new ArrayList<>(List.of(FIRST_CUSTOMERS));
+    private final List<LeavingCustomer> leavingCustomers = new ArrayList<>();
+    private int nextCustomerFruit;
+    private long lineMoveStartNanos;
+    // The full crate of each fruit, with bottles of its color, indexed by fruit.
+    private final Image[] fullCrateImages;
     private final PulpieSprites pulpieSprites;
+    private final PulpieSprites customerSprites;
     private final ManagerSprites managerSprites;
     private final Game game;
     private Mine mine;
@@ -195,7 +282,12 @@ public class MineView implements Renderable {
         this.shaftBottomImage = loadImage("/images/mine/shaft_bottom.png");
         this.elevatorImage = loadImage("/images/mine/elevator.png");
         this.headframeImage = loadImage("/images/mine/headframe.png");
+        this.smoothieIcon = loadImage("/images/ui/smoothie.png");
+        this.emptyCrateImage = loadImage("/images/mine/crate_empty.png");
+        this.barImage = loadImage("/images/mine/bar.png");
+        this.fullCrateImages = loadFruitImages("crate_");
         this.pulpieSprites = new PulpieSprites(PULPIE_SPRITE_SIZE);
+        this.customerSprites = new PulpieSprites(CUSTOMER_SIZE);
         this.managerSprites = new ManagerSprites(MANAGER_SPRITE_HEIGHT);
     }
 
@@ -207,6 +299,8 @@ public class MineView implements Renderable {
         if (mine != game.getMine()) {
             mine = game.getMine();
             scrollY = 0;
+            saleFloats.clear();
+            salesSeen = mine.getSellStation().getSalesMade();
         }
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         drawSurface();
@@ -217,6 +311,10 @@ public class MineView implements Renderable {
         List<Floor> floors = mine.getFloors();
         for (int i = floors.size() - 1; i >= 0; i--) {
             drawFloor(floors.get(i));
+        }
+        // After every floor, since the dirt at the bottom of a room image covers the top of the room below.
+        for (Floor floor : floors) {
+            drawFloorSign(floor, floorY(floor.getIndex()) - scrollY);
         }
         drawGround();
         for (int i = floors.size(); i < mine.getMaxFloors(); i++) {
@@ -365,17 +463,13 @@ public class MineView implements Renderable {
             gc.fillRect(getRoomX(), y + roomHeight, getRoomWidth(), floorHeight - roomHeight);
             drawDirtEdge(SOIL_COLORS[fruit.ordinal()], getRoomX(), y + floorHeight, getRoomWidth());
         }
-        gc.setFill(Color.WHITE);
-        gc.fillText("Floor " + (floor.getIndex() + 1), getCrateX(), y + EDGE_HEIGHT + ROOM_MARGIN);
 
         double boxY = getGroundY(y) - BOX_SIZE;
-        gc.setFill(CRATE_COLOR);
-        gc.fillRect(getCrateX(), boxY, BOX_SIZE, BOX_SIZE);
         if (image == null) {
             gc.setFill(EXTRACTOR_COLOR);
             gc.fillRect(getExtractorX(), boxY, BOX_SIZE, BOX_SIZE);
         }
-        drawLabel(NumberFormatter.format(floor.getStoredAmount()), getCrateX(), boxY - ROOM_MARGIN);
+        drawCrate(floor, getGroundY(y));
 
         for (Pulpie pulpie : floor.getPulpies()) {
             drawPulpie(pulpie, fruit, y);
@@ -614,14 +708,28 @@ public class MineView implements Renderable {
      * Writes a small white text with a dark outline, centered on the given point, readable over any image.
      */
     private void drawCenteredText(String text, double centerX, double centerY) {
+        drawCenteredText(text, centerX, centerY, CABIN_FONT);
+    }
+
+    /**
+     * Writes a white text with a dark outline in the given font, centered on the given point.
+     */
+    private void drawCenteredText(String text, double centerX, double centerY, Font font) {
+        drawCenteredText(text, centerX, centerY, font, Color.WHITE);
+    }
+
+    /**
+     * Writes a text of the given color with a dark outline in the given font, centered on the given point.
+     */
+    private void drawCenteredText(String text, double centerX, double centerY, Font font, Color color) {
         gc.save();
-        gc.setFont(CABIN_FONT);
+        gc.setFont(font);
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
         gc.setLineWidth(TEXT_OUTLINE_WIDTH);
         gc.setStroke(Color.BLACK);
         gc.strokeText(text, centerX, centerY);
-        gc.setFill(Color.WHITE);
+        gc.setFill(color);
         gc.fillText(text, centerX, centerY);
         gc.restore();
     }
@@ -640,21 +748,141 @@ public class MineView implements Renderable {
         return firstGround + (position - 1) * floorHeight;
     }
 
+    /**
+     * Writes the smoothie waiting at the surface, after a smoothie icon, just above the roof of the headframe,
+     * or above the "Lv" button of the elevator if the image is missing.
+     */
     private void drawSurfaceStock() {
-        Box box = getStockBox();
-        double y = box.y() - scrollY;
-        gc.setFill(STOCK_BACKGROUND);
-        gc.fillRoundRect(box.x(), y, box.width(), box.height(), BUTTON_RADIUS, BUTTON_RADIUS);
-        drawCenteredText(NumberFormatter.format(mine.getSurfaceAmount()),
-                box.x() + box.width() / 2, y + box.height() / 2);
+        double top = headframeImage == null
+                ? getHeadframeLevelButton().y()
+                : SURFACE_HEIGHT - headframeHeight() * HEADFRAME_PLATFORM_Y;
+        drawSmoothieBadge(mine.getSurfaceAmount(), SHAFT_WIDTH / 2, top - STOCK_TEXT_GAP - scrollY);
     }
 
     /**
-     * @return where the surface stock is shown, on the ground right of the elevator manager, in world coordinates
+     * Writes a quantity of smoothie after a smoothie icon, on a soft pill, centered on the given point
+     * without leaving the screen. Used above the headframe and above the bar.
      */
-    private Box getStockBox() {
-        return new Box(getElevatorManagerX() + MANAGER_SPACE + CABIN_MARGIN,
-                SURFACE_HEIGHT - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+    private void drawSmoothieBadge(double quantity, double centerX, double centerY) {
+        String amount = NumberFormatter.format(quantity);
+        gc.save();
+        gc.setFont(STOCK_FONT);
+        double amountWidth = textWidth(amount);
+        gc.restore();
+        double iconWidth = smoothieIcon == null ? 0 : STOCK_ICON_SIZE + STOCK_ICON_GAP;
+        double contentWidth = iconWidth + amountWidth;
+        double left = Math.min(Math.max(STOCK_PILL_PADDING_X, centerX - contentWidth / 2),
+                canvas.getWidth() - STOCK_PILL_PADDING_X - contentWidth);
+        double pillHeight = STOCK_ICON_SIZE + 2 * STOCK_PILL_PADDING_Y;
+        gc.setFill(STOCK_PILL_COLOR);
+        gc.fillRoundRect(left - STOCK_PILL_PADDING_X, centerY - pillHeight / 2,
+                iconWidth + amountWidth + 2 * STOCK_PILL_PADDING_X, pillHeight, pillHeight, pillHeight);
+        if (smoothieIcon != null) {
+            gc.drawImage(smoothieIcon, left, centerY - STOCK_ICON_SIZE / 2, STOCK_ICON_SIZE, STOCK_ICON_SIZE);
+        }
+        drawCenteredText(amount, left + iconWidth + amountWidth / 2, centerY, STOCK_FONT);
+    }
+
+    /**
+     * Draws the floor number on a small wooden sign hanging from the ceiling by two ropes.
+     */
+    private void drawFloorSign(Floor floor, double floorScreenY) {
+        double centerX;
+        double ceilingY;
+        if (roomImages[floor.getFruit().ordinal()] != null) {
+            double roomScale = canvas.getWidth() / ROOM_IMAGE_WIDTH;
+            centerX = ROOM_IMAGE_SIGN_X * roomScale;
+            ceilingY = floorScreenY + ROOM_IMAGE_CEILING_Y * roomScale;
+        } else {
+            centerX = getCrateX() + SIGN_MIN_WIDTH / 2;
+            ceilingY = floorScreenY + EDGE_HEIGHT;
+        }
+        String number = String.valueOf(floor.getIndex() + 1);
+        gc.save();
+        gc.setFont(SIGN_FONT);
+        double width = Math.max(SIGN_MIN_WIDTH, textWidth(number) + 2 * SIGN_PADDING_X);
+        gc.restore();
+        double left = centerX - width / 2;
+        double top = ceilingY + SIGN_ROPE_LENGTH;
+        double[] ropes = {left + SIGN_ROPE_INSET, left + width - SIGN_ROPE_INSET};
+
+        gc.setStroke(SIGN_ROPE_COLOR);
+        gc.setLineWidth(SIGN_BORDER_WIDTH);
+        for (double ropeX : ropes) {
+            gc.strokeLine(ropeX, ceilingY, ropeX, top + SIGN_NAIL_RADIUS);
+        }
+        gc.setFill(new LinearGradient(0, top, 0, top + SIGN_HEIGHT, false, CycleMethod.NO_CYCLE,
+                new Stop(0, SIGN_WOOD_LIGHT), new Stop(1, SIGN_WOOD_DARK)));
+        gc.fillRoundRect(left, top, width, SIGN_HEIGHT, SIGN_RADIUS, SIGN_RADIUS);
+        gc.setStroke(BUTTON_BORDER_COLOR);
+        gc.strokeRoundRect(left, top, width, SIGN_HEIGHT, SIGN_RADIUS, SIGN_RADIUS);
+        gc.setFill(SIGN_NAIL_COLOR);
+        for (double ropeX : ropes) {
+            gc.fillOval(ropeX - SIGN_NAIL_RADIUS, top + SIGN_NAIL_RADIUS, 2 * SIGN_NAIL_RADIUS, 2 * SIGN_NAIL_RADIUS);
+        }
+        drawCenteredText(number, centerX, top + SIGN_HEIGHT / 2 + 1, SIGN_FONT);
+    }
+
+    /**
+     * @return the Lilita One font of the popups for the floor signs, or a bold system font if the file is missing
+     */
+    private static Font loadSignFont() {
+        InputStream stream = MineView.class.getResourceAsStream("/fonts/LilitaOne-Regular.ttf");
+        Font font = stream == null ? null : Font.loadFont(stream, SIGN_FONT_SIZE);
+        return font != null ? font : Font.font("System", FontWeight.BOLD, SIGN_FONT_SIZE);
+    }
+
+    /**
+     * Draws the crate of the floor standing on the ground where the Pulpies drop their smoothie:
+     * empty, or full of bottles of the floor fruit color, with the quantity it holds written just above it. Falls back to a plain box if the image is missing.
+     */
+    private void drawCrate(Floor floor, double groundScreenY) {
+        String amount = NumberFormatter.format(floor.getStoredAmount());
+        double centerX = getCrateX() + BOX_SIZE / 2;
+        // Every crate image has the same size with the box at the same place, only the bottles stick out.
+        Image crateImage = floor.isCrateEmpty() ? emptyCrateImage : fullCrateImages[floor.getFruit().ordinal()];
+        if (crateImage == null) {
+            gc.setFill(CRATE_COLOR);
+            gc.fillRect(getCrateX(), groundScreenY - BOX_SIZE, BOX_SIZE, BOX_SIZE);
+            drawCenteredText(amount, centerX, groundScreenY - BOX_SIZE / 2);
+            return;
+        }
+        double height = crateImage.getHeight() * CRATE_WIDTH / crateImage.getWidth();
+        double top = groundScreenY - height;
+        gc.drawImage(crateImage, centerX - CRATE_WIDTH / 2, top, CRATE_WIDTH, height);
+        drawCenteredText(amount, centerX, top - CRATE_TEXT_GAP);
+    }
+
+    /**
+     * @return where the square "Lv" button of the bar is: on the back wall of the bar image,
+     *         or in the middle of the plain box if the image is missing, in world coordinates
+     */
+    private Box getBarLevelButton() {
+        Box bar = getBar();
+        double centerX = bar.x() + bar.width() * (barImage == null ? 0.5 : BAR_WALL_X);
+        double centerY = bar.y() + bar.height() * (barImage == null ? 0.5 : BAR_WALL_Y);
+        return new Box(centerX - LEVEL_BUTTON_SIZE / 2, centerY - LEVEL_BUTTON_SIZE / 2,
+                LEVEL_BUTTON_SIZE, LEVEL_BUTTON_SIZE);
+    }
+
+    /**
+     * @return where the square "Lv" button of the floor is: on the drill body of the extractor of the room image,
+     *         or on the extractor box if the image is missing, in world coordinates
+     */
+    private Box getExtractorLevelButton(Floor floor) {
+        double top = floorY(floor.getIndex());
+        double centerX;
+        double centerY;
+        if (roomImages[floor.getFruit().ordinal()] != null) {
+            double roomScale = canvas.getWidth() / ROOM_IMAGE_WIDTH;
+            centerX = ROOM_IMAGE_EXTRACTOR_X * roomScale;
+            centerY = top + ROOM_IMAGE_EXTRACTOR_Y * roomScale;
+        } else {
+            centerX = getExtractorX() + BOX_SIZE / 2;
+            centerY = top + roomHeight - BOX_SIZE / 2;
+        }
+        return new Box(centerX - LEVEL_BUTTON_SIZE / 2, centerY - LEVEL_BUTTON_SIZE / 2,
+                LEVEL_BUTTON_SIZE, LEVEL_BUTTON_SIZE);
     }
 
     /**
@@ -696,14 +924,117 @@ public class MineView implements Renderable {
      */
     private void drawSellStation() {
         SellStation sellStation = mine.getSellStation();
-        double y = getBar().y() - scrollY;
-        gc.setFill(BAR_COLOR);
-        gc.fillRect(getBarX(), y, BAR_SIZE, BAR_SIZE);
+        checkNewSale(sellStation);
+        Box bar = getBar();
+        double y = bar.y() - scrollY;
+        if (barImage == null) {
+            gc.setFill(BAR_COLOR);
+            gc.fillRect(bar.x(), y, bar.width(), bar.height());
+            gc.setFill(PROGRESS_COLOR);
+            gc.fillRect(bar.x(), y + bar.height() - CABIN_MARGIN, bar.width() * sellStation.getProgress(), CABIN_MARGIN);
+            drawSmoothieBadge(sellStation.getOnSaleAmount(), bar.x() + bar.width() / 2, y - BAR_TEXT_GAP);
+            return;
+        }
+        gc.drawImage(barImage, bar.x(), y, bar.width(), bar.height());
+        // The sale progress fills the metal strip of the counter, over a dark track.
+        double stripX = bar.x() + bar.width() * BAR_STRIP_LEFT;
+        double stripWidth = bar.width() * (BAR_STRIP_RIGHT - BAR_STRIP_LEFT);
+        double stripY = y + bar.height() * BAR_STRIP_Y - BAR_PROGRESS_HEIGHT / 2;
+        gc.setFill(BAR_PROGRESS_TRACK);
+        gc.fillRoundRect(stripX, stripY, stripWidth, BAR_PROGRESS_HEIGHT, BAR_PROGRESS_HEIGHT, BAR_PROGRESS_HEIGHT);
         gc.setFill(PROGRESS_COLOR);
-        gc.fillRect(getBarX(), y + BAR_SIZE - CABIN_MARGIN, BAR_SIZE * sellStation.getProgress(), CABIN_MARGIN);
-        gc.setFill(Color.WHITE);
-        gc.fillText("BAR", getBarX() + CABIN_MARGIN, y + 2 * CABIN_MARGIN);
-        drawLabel(NumberFormatter.format(sellStation.getOnSaleAmount()), getBarX(), y - CABIN_MARGIN);
+        gc.fillRoundRect(stripX, stripY, stripWidth * sellStation.getProgress(), BAR_PROGRESS_HEIGHT,
+                BAR_PROGRESS_HEIGHT, BAR_PROGRESS_HEIGHT);
+        drawSmoothieBadge(sellStation.getOnSaleAmount(), bar.x() + bar.width() / 2, y - BAR_TEXT_GAP);
+        drawCustomers(bar, y);
+        drawSaleFloats(bar, y);
+    }
+
+    /**
+     * On a new sale, starts its "+coins" text, sends the first customer walking away and moves the line forward,
+     * with a new customer coming in at the back.
+     */
+    private void checkNewSale(SellStation sellStation) {
+        if (sellStation.getSalesMade() == salesSeen) {
+            return;
+        }
+        salesSeen = sellStation.getSalesMade();
+        long now = System.nanoTime();
+        saleFloats.add(new SaleFloat("+" + NumberFormatter.format(sellStation.getLastSaleCoins()), now));
+        leavingCustomers.add(new LeavingCustomer(customers.remove(0), now));
+        customers.add(Fruit.values()[nextCustomerFruit]);
+        nextCustomerFruit = (nextCustomerFruit + 1) % Fruit.values().length;
+        lineMoveStartNanos = now;
+    }
+
+    /**
+     * Draws the line of customers waiting at the right of the bar, the farthest first so the closest stands in front.
+     */
+    private void drawCustomers(Box bar, double barScreenY) {
+        long now = System.nanoTime();
+        double groundY = barScreenY + bar.height();
+        double frontX = bar.x() + bar.width() + CUSTOMER_FIRST_GAP;
+        // From 0 to 1 while the line moves one place forward after a sale, 1 once everyone stands still.
+        double move = Math.min(1, (now - lineMoveStartNanos) / NANOS_PER_SECOND / LINE_MOVE_SECONDS);
+        boolean moving = move < 1;
+        for (int i = customers.size() - 1; i >= 0; i--) {
+            Fruit fruit = customers.get(i);
+            double x = frontX + (i + (1 - move)) * CUSTOMER_SPACING;
+            Animation animation = moving ? Animation.WALK : Animation.IDLE;
+            if (!customerSprites.has(fruit, animation)) {
+                continue;
+            }
+            int frameCount = customerSprites.getFrameCount(fruit, animation);
+            int frame = moving
+                    ? (int) (CUSTOMER_SPACING * move / WALK_STEP) % frameCount
+                    : (int) ((now / IDLE_FRAME_NANOS + i * CUSTOMER_FRAME_SHIFT) % frameCount);
+            customerSprites.draw(gc, fruit, animation, frame, x, groundY, true);
+        }
+        drawLeavingCustomers(frontX, groundY + CUSTOMER_LEAVE_LOWER, now);
+    }
+
+    /**
+     * The customers already served walk away to the right, in front of the line, until they leave the window.
+     */
+    private void drawLeavingCustomers(double frontX, double groundY, long now) {
+        leavingCustomers.removeIf(leaving -> frontX + walkedAway(leaving, now) > canvas.getWidth() + CUSTOMER_SIZE);
+        for (LeavingCustomer leaving : leavingCustomers) {
+            if (!customerSprites.has(leaving.fruit(), Animation.WALK)) {
+                continue;
+            }
+            double walked = walkedAway(leaving, now);
+            int frame = (int) (walked / WALK_STEP) % customerSprites.getFrameCount(leaving.fruit(), Animation.WALK);
+            customerSprites.draw(gc, leaving.fruit(), Animation.WALK, frame, frontX + walked, groundY, false);
+        }
+    }
+
+    /**
+     * @return how far the served customer has walked from the front of the line, in pixels
+     */
+    private static double walkedAway(LeavingCustomer leaving, long now) {
+        return (now - leaving.startNanos()) / NANOS_PER_SECOND * CUSTOMER_WALK_SPEED;
+    }
+
+    /**
+     * Makes every "+coins" text rise from the cash register and fade out.
+     */
+    private void drawSaleFloats(Box bar, double barScreenY) {
+        long now = System.nanoTime();
+        saleFloats.removeIf(sale -> (now - sale.startNanos()) / NANOS_PER_SECOND >= SALE_FLOAT_SECONDS);
+        double startX = bar.x() + bar.width() * (barImage == null ? 0.5 : BAR_REGISTER_X);
+        double startY = barScreenY + bar.height() * (barImage == null ? 0.5 : BAR_REGISTER_Y);
+        for (SaleFloat sale : saleFloats) {
+            double progress = (now - sale.startNanos()) / NANOS_PER_SECOND / SALE_FLOAT_SECONDS;
+            double y = startY - SALE_FLOAT_RISE * progress;
+            gc.save();
+            gc.setGlobalAlpha(1 - progress);
+            gc.setFont(SALE_FONT);
+            double textWidth = textWidth(sale.text());
+            double left = startX - (textWidth + COIN_GAP + COIN_SIZE) / 2;
+            drawCenteredText(sale.text(), left + textWidth / 2, y, SALE_FONT, SALE_COLOR);
+            gc.drawImage(CoinIcon.IMAGE, left + textWidth + COIN_GAP, y - COIN_SIZE / 2, COIN_SIZE, COIN_SIZE);
+            gc.restore();
+        }
     }
 
     /**
@@ -711,15 +1042,7 @@ public class MineView implements Renderable {
      */
     private void drawLevelButton(Station station) {
         Box box = getLevelButton(station);
-        double y = box.y() - scrollY;
-        if (station.getType() == StationType.ELEVATOR) {
-            drawSquareLevelButton(station, box.x(), y, box.width());
-            return;
-        }
-        gc.setFill(game.canUpgrade(station, controller.getMode()) ? BUYABLE_COLOR : LOCKED_COLOR);
-        gc.fillRect(box.x(), y, box.width(), box.height());
-        gc.setFill(Color.WHITE);
-        gc.fillText("Lv " + station.getLevel() + " ^", box.x() + CABIN_MARGIN, y + LEVEL_HEIGHT - CABIN_MARGIN);
+        drawSquareLevelButton(station, box.x(), box.y() - scrollY, box.width());
     }
 
     /**
@@ -727,11 +1050,9 @@ public class MineView implements Renderable {
      */
     private Box getLevelButton(Station station) {
         return switch (station.getType()) {
-            case FLOOR -> new Box(getExtractorX() + BOX_SIZE - LEVEL_WIDTH,
-                    floorY(((Floor) station).getIndex()) + EDGE_HEIGHT + CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+            case FLOOR -> getExtractorLevelButton((Floor) station);
             case ELEVATOR -> getHeadframeLevelButton();
-            case SELL -> new Box(getBarX() + (BAR_SIZE - LEVEL_WIDTH) / 2,
-                    getBarWorldY() + (BAR_SIZE - LEVEL_HEIGHT) / 2, LEVEL_WIDTH, LEVEL_HEIGHT);
+            case SELL -> getBarLevelButton();
         };
     }
 
@@ -753,10 +1074,14 @@ public class MineView implements Renderable {
     private Box getManagerButton(Station station) {
         Box level = getLevelButton(station);
         return switch (station.getType()) {
-            case FLOOR -> new Box(level.x() - LEVEL_WIDTH - CABIN_MARGIN, level.y(), LEVEL_WIDTH, LEVEL_HEIGHT);
-            case ELEVATOR -> new Box(getStockBox().x(), getStockBox().y() - LEVEL_HEIGHT - CABIN_MARGIN,
-                    LEVEL_WIDTH, LEVEL_HEIGHT);
-            case SELL -> new Box(level.x(), level.y() + LEVEL_HEIGHT + CABIN_MARGIN / 2, LEVEL_WIDTH, LEVEL_HEIGHT);
+            case FLOOR -> new Box(getExtractorX() + BOX_SIZE - 2 * LEVEL_WIDTH - CABIN_MARGIN,
+                    floorY(((Floor) station).getIndex()) + EDGE_HEIGHT + CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+            // Above where its manager stands, like the bar's, so it leaves room for the bar's manager.
+            case ELEVATOR -> new Box(getElevatorManagerX() + (MANAGER_SPACE - LEVEL_WIDTH) / 2,
+                SURFACE_HEIGHT - getManagerHeight() - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+            // Left of the bar, above where its manager stands, so it leaves the counter and its progress free.
+            case SELL -> new Box(getBarX() - LEVEL_WIDTH - MANAGER_GAP,
+                    SURFACE_HEIGHT - getManagerHeight() - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
         };
     }
 
@@ -786,6 +1111,13 @@ public class MineView implements Renderable {
     }
 
     /**
+     * @return how high a standing manager rises above the ground: its sprite, or the placeholder rectangle
+     */
+    private double getManagerHeight() {
+        return managerSprites.isLoaded() ? managerSprites.getStandingHeight() : MANAGER_HEIGHT;
+    }
+
+    /**
      * @return the vertical stretch of a breathing manager, a few percent around 1; each station
      *         has its own phase so the managers do not breathe together
      */
@@ -799,7 +1131,12 @@ public class MineView implements Renderable {
      * @return where the Smoothie Bar is, in world coordinates
      */
     private Box getBar() {
-        return new Box(getBarX(), getBarWorldY(), BAR_SIZE, BAR_SIZE);
+        if (barImage == null) {
+            return new Box(canvas.getWidth() - BAR_SIZE, SURFACE_HEIGHT - BAR_SIZE, BAR_SIZE, BAR_SIZE);
+        }
+        double height = barImage.getHeight() * BAR_WIDTH / barImage.getWidth();
+        return new Box(canvas.getWidth() * BAR_CENTER_X - BAR_WIDTH / 2, SURFACE_HEIGHT + BAR_SINK - height,
+                BAR_WIDTH, height);
     }
 
     /**
@@ -812,12 +1149,11 @@ public class MineView implements Renderable {
         gc.fillText(text, x, y);
     }
 
+    /**
+     * @return the left side of the bar, in world coordinates
+     */
     private double getBarX() {
-        return canvas.getWidth() - BAR_SIZE;
-    }
-
-    private double getBarWorldY() {
-        return SURFACE_HEIGHT - BAR_SIZE;
+        return getBar().x();
     }
 
     private double getGroundY(double floorScreenY) {
@@ -850,6 +1186,24 @@ public class MineView implements Renderable {
     /**
      * A clickable rectangle in world coordinates, shared by the drawing and the click detection.
      */
+    /**
+     * A "+coins" text rising from the bar after a sale.
+     *
+     * @param text       what is written, such as "+12.5K"
+     * @param startNanos when the sale happened, from {@link System#nanoTime()}
+     */
+    private record SaleFloat(String text, long startNanos) {
+    }
+
+    /**
+     * A served customer walking away from the bar.
+     *
+     * @param fruit      the fruit of the customer
+     * @param startNanos when it was served, from {@link System#nanoTime()}
+     */
+    private record LeavingCustomer(Fruit fruit, long startNanos) {
+    }
+
     private record Box(double x, double y, double width, double height) {
 
         boolean contains(double pointX, double pointY) {
