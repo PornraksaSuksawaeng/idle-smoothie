@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.idlesmoothie.core.BalanceConfig;
 import com.idlesmoothie.core.Game;
 import com.idlesmoothie.model.creature.CarryingState;
 import com.idlesmoothie.model.creature.DepositingState;
@@ -83,7 +84,16 @@ public class MineView implements Renderable {
     private static final double GRASS_HEIGHT = 16;
     private static final double GROUND_RAISE = 7;
     private static final double BARRIER_HEIGHT = 104;
+    private static final double UNLOCK_BUTTON_WIDTH = 76;
+    // The game has no getter for it; Game() uses the default config, so the value is the same.
+    private static final int BARRIER_MIN_LEVEL = new BalanceConfig().getBarrierMinLevel();
+    private static final double UNLOCK_BUTTON_HEIGHT = 52;
+    private static final Font UNLOCK_FONT = Font.font("System", FontWeight.BOLD, 15);
+    private static final double UNLOCK_TEXT_Y = 0.32;
+    private static final double UNLOCK_COST_Y = 0.68;
     private static final double SHAFT_WIDTH = 110;
+    // Share of the shaft bottom image taken by its bottom beam, which goes just under the cabin floor.
+    private static final double SHAFT_BEAM_RATIO = 0.19;
     private static final double ROOM_MARGIN = 20;
     private static final double BOX_SIZE = 40;
     // The crate image is a bit wider than the box the Pulpies walk to, and centered on it.
@@ -186,6 +196,7 @@ public class MineView implements Renderable {
     private final UpgradeController controller;
     private final UpgradePanel upgradePanel;
     private final ShopView shopView;
+    private final MessageView messageView;
     // The room images fill the canvas width, their left part hidden under the shaft,
     // so the floor sizes follow the canvas width.
     private final double floorHeight;
@@ -202,9 +213,10 @@ public class MineView implements Renderable {
      * @param controller   receives the player's clicks
      * @param upgradePanel popup opened by the "Lv" buttons
      * @param shopView     popup opened by the "Mgr" buttons
+     * @param messageView  popup telling why a barrier cannot be crossed yet
      */
     public MineView(double width, double height, Game game, UpgradeController controller,
-            UpgradePanel upgradePanel, ShopView shopView) {
+            UpgradePanel upgradePanel, ShopView shopView, MessageView messageView) {
         this.canvas = new Canvas(width, height);
         double roomScale = width / ROOM_IMAGE_WIDTH;
         this.floorHeight = ROOM_IMAGE_FLOOR_END * roomScale;
@@ -216,6 +228,7 @@ public class MineView implements Renderable {
         this.controller = controller;
         this.upgradePanel = upgradePanel;
         this.shopView = shopView;
+        this.messageView = messageView;
         canvas.setOnScroll(e -> onScroll(e.getDeltaY()));
         canvas.setOnMouseClicked(e -> onClick(e.getX(), e.getY()));
 
@@ -247,7 +260,7 @@ public class MineView implements Renderable {
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         drawSurface();
         drawSoilZones();
-        if (mine.hasNextFloor()) {
+        if (mine.hasNextFloor() && !mine.isBehindBarrier(mine.getFloors().size())) {
             drawLockedFloor(mine.getFloors().size());
         }
         List<Floor> floors = mine.getFloors();
@@ -263,6 +276,9 @@ public class MineView implements Renderable {
             if (mine.isBehindBarrier(i)) {
                 drawBarrier(i);
             }
+        }
+        if (hasBarrierButton()) {
+            drawBarrierButton();
         }
         drawShaft();
         drawHeadframe();
@@ -302,6 +318,10 @@ public class MineView implements Renderable {
                 return;
             }
         }
+        if (hasBarrierButton() && getBarrierButton().contains(x, worldY)) {
+            onBarrierButton();
+            return;
+        }
         if (getBar().contains(x, worldY)) {
             controller.onTap(mine.getSellStation());
             return;
@@ -317,9 +337,23 @@ public class MineView implements Renderable {
             }
         }
         double lockedTop = floorY(mine.getFloors().size());
-        if (mine.hasNextFloor() && worldY >= lockedTop && worldY < lockedTop + floorHeight) {
+        if (mine.hasNextFloor() && !mine.isBehindBarrier(mine.getFloors().size())
+                && worldY >= lockedTop && worldY < lockedTop + floorHeight) {
             controller.onUnlockFloor();
         }
+    }
+
+    /**
+     * Buys the floor behind the barrier, or explains which floor must be upgraded first.
+     */
+    private void onBarrierButton() {
+        if (mine.canUnlockNextFloor()) {
+            controller.onUnlockFloor();
+            return;
+        }
+        int floorNumber = mine.getDeepestFloor().getIndex() + 1;
+        messageView.show("LOCKED", "You need to upgrade floor " + floorNumber + " to level "
+                + BARRIER_MIN_LEVEL + " to unlock it.");
     }
 
     private List<Station> getStations() {
@@ -474,7 +508,6 @@ public class MineView implements Renderable {
 
     /**
      * Draws the next floor to buy, highlighted when the player can buy it.
-     * Behind a barrier, it says that the deepest floor must be upgraded first.
      */
     private void drawLockedFloor(int index) {
         double y = floorY(index) - scrollY;
@@ -484,10 +517,6 @@ public class MineView implements Renderable {
         double textY = y + roomHeight / 2;
         gc.fillText("Unlock floor " + (index + 1), getCrateX(), textY);
         double detailY = textY + ROOM_MARGIN;
-        if (!mine.canUnlockNextFloor()) {
-            gc.fillText("Barrier: upgrade floor " + index + " first", getCrateX(), detailY);
-            return;
-        }
         String cost = "Cost: " + NumberFormatter.format(mine.getNextFloorCost());
         gc.fillText(cost, getCrateX(), detailY);
         drawCoin(getCrateX() + textWidth(cost) + COIN_GAP, detailY);
@@ -523,6 +552,51 @@ public class MineView implements Renderable {
     }
 
     /**
+     * @return {@code true} if the next floor to buy is behind a barrier, bought with the button on the barrier
+     */
+    private boolean hasBarrierButton() {
+        return mine.hasNextFloor() && mine.isBehindBarrier(mine.getFloors().size());
+    }
+
+    /**
+     * Draws the "Unlock" button in the middle of the barrier, green when the player can buy the floor behind it.
+     */
+    private void drawBarrierButton() {
+        Box box = getBarrierButton();
+        double y = box.y() - scrollY;
+        gc.setFill(game.canBuyNextFloor() ? BUYABLE_COLOR : LOCKED_COLOR);
+        gc.fillRoundRect(box.x(), y, box.width(), box.height(), BUTTON_RADIUS, BUTTON_RADIUS);
+        gc.setStroke(BUTTON_BORDER_COLOR);
+        gc.setLineWidth(BUTTON_BORDER_WIDTH);
+        gc.strokeRoundRect(box.x(), y, box.width(), box.height(), BUTTON_RADIUS, BUTTON_RADIUS);
+        double centerX = box.x() + box.width() / 2;
+        gc.save();
+        gc.setFill(Color.WHITE);
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        gc.setFont(UNLOCK_FONT);
+        gc.fillText("Unlock", centerX, y + box.height() * UNLOCK_TEXT_Y);
+        gc.restore();
+        gc.save();
+        gc.setFill(Color.WHITE);
+        gc.setFont(CABIN_FONT);
+        String cost = NumberFormatter.format(mine.getNextFloorCost());
+        double costX = centerX - (textWidth(cost) + COIN_GAP + COIN_SIZE) / 2;
+        double costY = y + box.height() * UNLOCK_COST_Y + COIN_SIZE / 2;
+        gc.fillText(cost, costX, costY);
+        drawCoin(costX + textWidth(cost) + COIN_GAP, costY);
+        gc.restore();
+    }
+
+    /**
+     * @return where the "Unlock" button is, in world coordinates: centered on the barrier of the next floor
+     */
+    private Box getBarrierButton() {
+        return new Box((canvas.getWidth() - UNLOCK_BUTTON_WIDTH) / 2,
+                floorY(mine.getFloors().size()) - UNLOCK_BUTTON_HEIGHT / 2, UNLOCK_BUTTON_WIDTH, UNLOCK_BUTTON_HEIGHT);
+    }
+
+    /**
      * Draws a row of dirt teeth hanging below y, a placeholder for the irregular edge of the images.
      */
     private void drawDirtEdge(Color color, double x, double y, double width) {
@@ -534,20 +608,22 @@ public class MineView implements Renderable {
     }
 
     /**
-     * Draws the shaft from the surface down to the next floor to buy: the top beam, then the middle part
-     * repeated as many times as needed, and the bottom beam. Falls back to a plain color if an image is missing.
+     * Draws the shaft from the surface down to where the cabin stops at the deepest floor: the top beam,
+     * then the middle part repeated as many times as needed, and the bottom beam just under the cabin floor.
+     * Falls back to a plain color if an image is missing.
      */
     private void drawShaft() {
         double top = SURFACE_HEIGHT;
-        double bottom = floorY(mine.getFloors().size());
+        double cabinStop = getCabinBottomY(mine.getFloors().size());
         if (shaftTopImage == null || shaftMiddleImage == null || shaftBottomImage == null) {
             gc.setFill(SHAFT_COLOR);
-            gc.fillRect(0, top - scrollY, SHAFT_WIDTH, bottom - top);
+            gc.fillRect(0, top - scrollY, SHAFT_WIDTH, cabinStop - top);
             return;
         }
         double topHeight = scaledHeight(shaftTopImage);
         double bottomHeight = scaledHeight(shaftBottomImage);
         double tileHeight = scaledHeight(shaftMiddleImage);
+        double bottom = cabinStop + bottomHeight * SHAFT_BEAM_RATIO;
 
         // The last tile rarely fits: only its upper part is drawn, cut from the source image.
         double tilesEnd = bottom - bottomHeight;

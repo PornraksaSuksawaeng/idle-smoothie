@@ -61,13 +61,14 @@ public class IdleSmoothieApp extends Application {
         UpgradeController controller = new UpgradeController(game);
         UpgradePanel upgradePanel = new UpgradePanel(game, controller);
         ShopView shopView = new ShopView(game, controller);
-        MineView mineView = new MineView(540, 960, game, controller, upgradePanel, shopView);
+        MessageView messageView = new MessageView();
+        MineView mineView = new MineView(540, 960, game, controller, upgradePanel, shopView, messageView);
         HudView hudView = new HudView(game);
         SettingsView settingsView = new SettingsView(this::resetProgress);
         Button settingsButton = createSettingsButton(settingsView);
 
         StackPane root = new StackPane(mineView.getCanvas(), hudView.getRoot(), settingsButton,
-                upgradePanel.getRoot(), shopView.getRoot(), settingsView.getRoot());
+                upgradePanel.getRoot(), shopView.getRoot(), settingsView.getRoot(), messageView.getRoot());
         StackPane.setAlignment(hudView.getRoot(), Pos.TOP_CENTER);
         StackPane.setMargin(hudView.getRoot(), new Insets(HUD_MARGIN));
         StackPane.setAlignment(settingsButton, Pos.TOP_RIGHT);
