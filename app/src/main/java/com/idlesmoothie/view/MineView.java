@@ -207,8 +207,6 @@ public class MineView implements Renderable {
     private static final double NANOS_PER_SECOND = 1e9;
     private static final Color SALE_COLOR = Color.web("#7BE04A");
     private static final Font SALE_FONT = Font.font("System", FontWeight.BOLD, 15);
-    private static final double LEVEL_WIDTH = 64;
-    private static final double LEVEL_HEIGHT = 24;
     private static final double COIN_SIZE = 14;
     private static final double COIN_GAP = 4;
     private static final Color SHAFT_COLOR = Color.web("#3B2A1E");
@@ -219,7 +217,6 @@ public class MineView implements Renderable {
     private static final Color CABIN_COLOR = Color.web("#C9A227");
     private static final Color BAR_COLOR = Color.web("#E85D9A");
     private static final Color PROGRESS_COLOR = Color.web("#6CC644");
-    private static final Color LABEL_BACKGROUND = Color.rgb(0, 0, 0, 0.6);
     private static final double STOCK_TEXT_GAP = 16;
     private static final double STOCK_ICON_SIZE = 26;
     private static final double STOCK_ICON_GAP = 2;
@@ -1273,16 +1270,6 @@ public class MineView implements Renderable {
         double height = barImage.getHeight() * BAR_WIDTH / barImage.getWidth();
         return new Box(canvas.getWidth() * BAR_CENTER_X - BAR_WIDTH / 2, SURFACE_HEIGHT + BAR_SINK - height,
                 BAR_WIDTH, height);
-    }
-
-    /**
-     * Writes white text on a dark box so it stays readable over any background.
-     */
-    private void drawLabel(String text, double x, double y) {
-        gc.setFill(LABEL_BACKGROUND);
-        gc.fillRect(x - 4, y - 14, text.length() * 7 + 8, 20);
-        gc.setFill(Color.WHITE);
-        gc.fillText(text, x, y);
     }
 
     /**
