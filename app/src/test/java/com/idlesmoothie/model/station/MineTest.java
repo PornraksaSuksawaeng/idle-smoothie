@@ -209,4 +209,19 @@ class MineTest {
     void updateRejectsNegativeTime() {
         assertThrows(IllegalArgumentException.class, () -> newMine().update(-1));
     }
+
+    @Test
+    void deliveryRateIsTheSlowestStation() {
+        Mine mine = newMine();
+        double slowest = Math.min(mine.getProductionRate(),
+                Math.min(mine.getElevator().getThroughput(), mine.getSellStation().getThroughput()));
+
+        assertEquals(mine.getFloors().get(0).getThroughput(), mine.getProductionRate(), DELTA);
+        assertEquals(slowest, mine.getDeliveryRate(), DELTA);
+
+        Floor floor = mine.getFloors().get(0);
+        floor.upgrade(floor.getLevelsLeft());
+        assertEquals(Math.min(mine.getElevator().getThroughput(), mine.getSellStation().getThroughput()),
+                mine.getDeliveryRate(), DELTA);
+    }
 }

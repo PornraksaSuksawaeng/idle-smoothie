@@ -14,6 +14,7 @@ import com.idlesmoothie.model.manager.Manager;
 import com.idlesmoothie.model.manager.ManagerAbility;
 import com.idlesmoothie.model.manager.ManagerFactory;
 import com.idlesmoothie.model.manager.SpeedBoostAbility;
+import com.idlesmoothie.model.resource.SmoothieBatch;
 import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Mine;
 import com.idlesmoothie.model.station.Station;
@@ -29,10 +30,12 @@ import com.idlesmoothie.model.station.StationType;
 public class Game {
 
     private final BalanceConfig config;
+    private final PriceCalculator priceCalculator;
     private final Wallet wallet;
-    private final Mine mine;
+    private Mine mine;
     private final UpgradeService upgradeService;
     private final ManagerFactory managerFactory;
+    
 
     /**
      * Starts a new game with the default balance values.
@@ -81,6 +84,7 @@ public class Game {
         this.mine = new Mine(priceCalculator, wallet, config);
         this.upgradeService = new UpgradeService(wallet, config.getUpgradeCostGrowth());
         this.managerFactory = managerFactory;
+        this.priceCalculator = priceCalculator;
     }
 
     /**
@@ -161,6 +165,20 @@ public class Game {
      */
     public boolean canUpgrade(Station station, BuyMode mode) {
         return wallet.canAfford(getUpgradeCost(station, mode));
+    }
+
+    /**
+     * Returns how many levels the mode would buy now: 1, 10, or as many as the player can pay with MAX.
+     * With MAX and not enough coins for one level, it is 1, the level the button shows the price of.
+     *
+     * @param station the station to upgrade
+     * @param mode    how many levels to buy
+     * @return the number of levels, never more than the levels left, 0 at the maximum level
+     * @throws IllegalArgumentException if an argument is {@code null}
+     */
+    public int getLevelsToBuy(Station station, BuyMode mode) {
+        requireUpgradable(station, mode);
+        return upgradeService.previewLevels(station, mode);
     }
 
     /**
@@ -287,6 +305,29 @@ public class Game {
     }
 
     /**
+     * Returns the coins the mine earns per second once every station works, for the HUD.
+     * The smoothie sold is shared between the floors in proportion to what each one produces,
+     * so each floor's part is paid at the price of its fruit.
+     *
+     * @return the income per second, 0 while nothing is produced
+     */
+    public double getIncomePerSecond() {
+        double production = mine.getProductionRate();
+        if (production <= 0) {
+            return 0;
+        }
+        double soldShare = mine.getDeliveryRate() / production;
+        double income = 0;
+        for (Floor floor : mine.getFloors()) {
+            double sold = floor.getThroughput() * soldShare;
+            if (sold > 0) {
+                income += priceCalculator.priceOf(new SmoothieBatch(floor.getFruit(), sold));
+            }
+        }
+        return income;
+    }
+
+    /**
      * @return the player's coins
      */
     public double getCoins() {
@@ -363,5 +404,16 @@ public class Game {
                 throw new IllegalArgumentException("A saved manager works on a floor that does not exist");
             }
         }
+    }
+
+    /**
+     * Wipes the progress and starts over: the coins go back to 0, the mine to a single floor,
+     * and every station to level 1 without a manager.
+     * The view keeps the same {@code Game}, but must read {@link #getMine()} again, which is a new mine.
+     * The save file is not touched: call {@link SaveManager#delete()} as well, or the next launch loads it back.
+     */
+    public void reset() {
+        wallet.resetCoins();
+        mine = new Mine(priceCalculator, wallet, config);
     }
 }

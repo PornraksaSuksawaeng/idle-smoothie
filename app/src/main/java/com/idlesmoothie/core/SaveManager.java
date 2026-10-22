@@ -56,6 +56,16 @@ public final class SaveManager {
     }
 
     /**
+     * Deletes the save file, so the next launch starts a new game. Does nothing if there is no save.
+     *
+     * @throws IOException if the file exists but cannot be deleted
+     */
+    public void delete() throws IOException {
+        Files.deleteIfExists(path);
+        Files.deleteIfExists(path.resolveSibling(path.getFileName() + ".tmp"));
+    }
+
+    /**
      * Reads the save file.
      *
      * @return the saved state, or an empty {@code Optional} if the file does not exist or is empty

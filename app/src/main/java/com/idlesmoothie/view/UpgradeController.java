@@ -2,6 +2,7 @@ package com.idlesmoothie.view;
 
 import com.idlesmoothie.core.Game;
 import com.idlesmoothie.model.economy.BuyMode;
+import com.idlesmoothie.model.economy.UpgradeReport;
 import com.idlesmoothie.model.manager.Manager;
 import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Station;
@@ -42,9 +43,10 @@ public class UpgradeController {
      * Buys levels for the station with the current buy mode. Does nothing if the player cannot pay.
      *
      * @param station the station to upgrade
+     * @return the levels gained and the coins spent, both 0 if the player could not pay
      */
-    public void onUpgrade(Station station) {
-        game.upgrade(station, mode);
+    public UpgradeReport onUpgrade(Station station) {
+        return game.upgrade(station, mode);
     }
 
     /**

@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import com.idlesmoothie.model.manager.CapacityBoostAbility;
 import com.idlesmoothie.model.manager.Manager;
 import com.idlesmoothie.model.manager.Rarity;
@@ -21,6 +23,7 @@ class StationTest {
     private static class FakeStation extends Station {
 
         private static final double ROUND_DURATION = 1;
+        private static final List<Integer> MILESTONES = List.of(10, 20);
 
         private final double speed;
         private final double capacity;
@@ -53,7 +56,17 @@ class StationTest {
         }
 
         @Override
-        protected StationStats baseStats() {
+        public List<Integer> getMilestoneLevels() {
+            return MILESTONES;
+        }
+
+        @Override
+        public double getMilestoneMultiplier() {
+            return 2;
+        }
+
+        @Override
+        protected StationStats statsAt(int level) {
             return new StationStats(speed, capacity);
         }
 
@@ -369,5 +382,35 @@ class StationTest {
     @Test
     void restoreManagersHiredRejectsANegativeCount() {
         assertThrows(IllegalArgumentException.class, () -> new FakeStation(2, 10).restoreManagersHired(-1));
+    }
+
+    @Test
+    void previewStatsAppliesTheManager() {
+        FakeStation station = new FakeStation(2, 10);
+        station.assignManager(floorManager(1.5));
+
+        assertEquals(3, station.previewStats(0).getSpeed(), DELTA);
+        assertEquals(10, station.previewStats(4).getCapacity(), DELTA);
+    }
+
+    @Test
+    void previewStatsRejectsLevelsOutsideTheRange() {
+        FakeStation station = new FakeStation(2, 10);
+
+        assertThrows(IllegalArgumentException.class, () -> station.previewStats(-1));
+        assertThrows(IllegalArgumentException.class, () -> station.previewStats(station.getLevelsLeft() + 1));
+        assertEquals(10, station.previewStats(station.getLevelsLeft()).getCapacity(), DELTA);
+    }
+
+    @Test
+    void nextMilestoneIsTheFirstOneAboveTheLevel() {
+        FakeStation station = new FakeStation(2, 10);
+        assertEquals(10, station.getNextMilestone().getAsInt());
+
+        station.upgrade(9);
+        assertEquals(20, station.getNextMilestone().getAsInt());
+
+        station.upgrade(10);
+        assertTrue(station.getNextMilestone().isEmpty());
     }
 }

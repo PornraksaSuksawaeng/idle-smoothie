@@ -283,4 +283,22 @@ class SellStationTest {
 
         assertEquals(perSale, station.getOnSaleAmount(), DELTA * perSale);
     }
+
+    @Test
+    void previewMatchesAnUpgradeWithoutChangingTheStation() {
+        SellStation station = new SellStation(surface, prices, wallet, config);
+        int extra = config.getMilestoneLevels().get(0);
+        StationStats preview = station.previewStats(extra);
+        double throughput = station.previewThroughput(extra);
+        int pulpies = station.previewPulpieCount(extra);
+
+        assertEquals(1, station.getLevel());
+        assertEquals(1, station.getPulpieCount());
+
+        station.upgrade(extra);
+        assertEquals(station.getStats().getCapacity(), preview.getCapacity(), DELTA);
+        assertEquals(station.getThroughput(), throughput, DELTA);
+        assertEquals(2, pulpies);
+        assertEquals(station.getPulpieCount(), pulpies);
+    }
 }

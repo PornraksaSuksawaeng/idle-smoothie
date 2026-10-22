@@ -260,4 +260,28 @@ class ElevatorTest {
 
         assertEquals(expected, elevator.getStats().getCapacity(), DELTA * expected);
     }
+
+    @Test
+    void previewMatchesAnUpgradeWithoutChangingTheElevator() {
+        floors.add(new Floor(0, Fruit.KIWI, config));
+        Elevator elevator = new Elevator(floors, surface, config);
+        int extra = config.getMilestoneLevels().get(0) + 5;
+        StationStats preview = elevator.previewStats(extra);
+        double throughput = elevator.previewThroughput(extra);
+
+        assertEquals(1, elevator.getLevel());
+
+        elevator.upgrade(extra);
+        assertEquals(elevator.getStats().getSpeed(), preview.getSpeed(), DELTA);
+        assertEquals(elevator.getStats().getCapacity(), preview.getCapacity(), DELTA);
+        assertEquals(elevator.getThroughput(), throughput, DELTA);
+    }
+
+    @Test
+    void elevatorMilestonesUseTheirOwnMultiplier() {
+        Elevator elevator = new Elevator(floors, surface, config);
+
+        assertEquals(config.getElevatorMilestoneMultiplier(), elevator.getMilestoneMultiplier(), DELTA);
+        assertEquals(config.getMilestoneLevels().get(0), elevator.getNextMilestone().getAsInt());
+    }
 }

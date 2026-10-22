@@ -397,4 +397,94 @@ class GameTest {
 
         assertEquals(before, game.createSnapshot());
     }
+
+    @Test
+    void resetStartsTheGameOver() {
+        Game game = newGame();
+        wallet.addCoins(1e9);
+        game.buyNextFloor();
+        game.upgrade(game.getMine().getElevator(), BuyMode.X10);
+        game.hireManager(game.getMine().getSellStation());
+        GameSnapshot newGame = newGame().createSnapshot();
+
+        game.reset();
+
+        assertEquals(new GameSnapshot(0, newGame.floorLevels(), newGame.elevatorLevel(), newGame.sellLevel(),
+                newGame.managers()), game.createSnapshot());
+    }
+
+    @Test
+    void gameKeepsWorkingAfterReset() {
+        Game game = newGame();
+        game.reset();
+
+        game.tapFloor(0);
+        run(game, 1 / config.getFloorTripSpeed() + 0.1);
+
+        assertTrue(game.getMine().getFloors().get(0).getStoredAmount() > 0);
+    }
+
+    @Test
+    void resetGameCanLoadASave() {
+        GameSnapshot saved = newGame().createSnapshot();
+        Game game = newGame();
+        wallet.addCoins(1e9);
+        game.buyNextFloor();
+
+        game.reset();
+        game.restore(saved);
+
+        assertEquals(saved, game.createSnapshot());
+    }
+
+    @Test
+    void levelsToBuyMatchWhatUpgradeBuys() {
+        Game game = newGame();
+        Floor floor = game.getMine().getFloors().get(0);
+        wallet.addCoins(1_000_000);
+
+        assertEquals(1, game.getLevelsToBuy(floor, BuyMode.X1));
+        assertEquals(10, game.getLevelsToBuy(floor, BuyMode.X10));
+        int maxLevels = game.getLevelsToBuy(floor, BuyMode.MAX);
+        assertTrue(maxLevels > 10);
+        assertEquals(maxLevels, game.upgrade(floor, BuyMode.MAX).levelsGained());
+    }
+
+    @Test
+    void levelsToBuyWithMaxIsOneWhenThePlayerIsShort() {
+        Game game = newGame();
+
+        assertEquals(1, game.getLevelsToBuy(game.getMine().getElevator(), BuyMode.MAX));
+    }
+
+    @Test
+    void levelsToBuyAreZeroAtTheMaximumLevel() {
+        Game game = newGame();
+        Station sell = game.getMine().getSellStation();
+        sell.upgrade(sell.getLevelsLeft());
+
+        for (BuyMode mode : BuyMode.values()) {
+            assertEquals(0, game.getLevelsToBuy(sell, mode));
+        }
+    }
+
+    @Test
+    void levelsToBuyRejectNullArguments() {
+        Game game = newGame();
+
+        assertThrows(IllegalArgumentException.class, () -> game.getLevelsToBuy(null, BuyMode.X1));
+        assertThrows(IllegalArgumentException.class,
+                () -> game.getLevelsToBuy(game.getMine().getElevator(), null));
+    }
+
+    @Test
+    void incomePerSecondPaysWhatTheMineSells() {
+        Game game = newGame();
+
+        assertEquals(game.getMine().getDeliveryRate() * UNIT_PRICE, game.getIncomePerSecond(), DELTA);
+
+        Floor floor = game.getMine().getFloors().get(0);
+        floor.upgrade(floor.getLevelsLeft());
+        assertEquals(game.getMine().getDeliveryRate() * UNIT_PRICE, game.getIncomePerSecond(), DELTA);
+    }
 }

@@ -59,14 +59,25 @@ public class Elevator extends Station {
         return getBaseUpgradeCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
     }
 
+    @Override
+    public List<Integer> getMilestoneLevels() {
+        return config.getMilestoneLevels();
+    }
+
     /**
-     * A round trip covers the depth of the mine twice, so deeper mines move less smoothie per second.
-     *
-     * @return the smoothie brought to the surface per second
+     * The elevator gains more than the other stations, since it never gains a Pulpie.
      */
     @Override
-    public double getThroughput() {
-        StationStats stats = getStats();
+    public double getMilestoneMultiplier() {
+        return config.getElevatorMilestoneMultiplier();
+    }
+
+    /**
+     * The smoothie brought to the surface per second.
+     * A round trip covers the depth of the mine twice, so deeper mines move less smoothie per second.
+     */
+    @Override
+    protected double throughputOf(StationStats stats, int level) {
         int depth = Math.max(1, floors.size());
         return stats.getCapacity() * stats.getSpeed() / (2.0 * depth);
     }
@@ -96,11 +107,10 @@ public class Elevator extends Station {
      * Speed is the number of floors travelled per second; capacity is the size of the cabin.
      */
     @Override
-    protected StationStats baseStats() {
+    protected StationStats statsAt(int level) {
         return new StationStats(
-                config.getElevatorMoveSpeed() * (1 + config.getElevatorSpeedGrowth() * (getLevel() - 1)),
-                config.getElevatorBaseCapacity() * levelBonus(config.getStatGrowth(),
-                        config.getMilestoneLevels(), config.getElevatorMilestoneMultiplier())
+                config.getElevatorMoveSpeed() * (1 + config.getElevatorSpeedGrowth() * (level - 1)),
+                config.getElevatorBaseCapacity() * levelBonus(config.getStatGrowth(), level)
         );
     }
 
