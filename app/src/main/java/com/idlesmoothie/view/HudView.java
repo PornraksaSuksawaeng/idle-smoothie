@@ -13,6 +13,7 @@ import javafx.scene.layout.VBox;
 public class HudView implements Renderable {
 
     private static final double SPACING = 4;
+    private static final double COIN_SIZE = 20;
     private static final String STYLE = "-fx-background-color: rgba(0, 0, 0, 0.6);"
             + " -fx-background-radius: 8; -fx-padding: 8 16;";
     private static final String TEXT_STYLE = "-fx-text-fill: white; -fx-font-size: 14px;";
@@ -30,6 +31,7 @@ public class HudView implements Renderable {
     public HudView(Game game) {
         this.game = game;
         coinsLabel.setStyle(TEXT_STYLE + " -fx-font-size: 20px; -fx-font-weight: bold;");
+        CoinIcon.addTo(coinsLabel, COIN_SIZE);
         bottleneckLabel.setStyle(TEXT_STYLE);
         root = new VBox(SPACING, coinsLabel, bottleneckLabel);
         root.setAlignment(Pos.CENTER);
@@ -43,7 +45,7 @@ public class HudView implements Renderable {
      */
     @Override
     public void render() {
-        coinsLabel.setText(NumberFormatter.format(game.getCoins()) + " coins");
+        coinsLabel.setText(NumberFormatter.format(game.getCoins()));
         bottleneckLabel.setText("Bottleneck: " + game.getBottleneck());
     }
 

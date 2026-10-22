@@ -20,6 +20,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 
 /**
  * Draws the underground mine on a canvas and lets the player scroll it vertically.
@@ -54,6 +55,8 @@ public class MineView implements Renderable {
     private static final double BAR_SIZE = 100;
     private static final double LEVEL_WIDTH = 64;
     private static final double LEVEL_HEIGHT = 24;
+    private static final double COIN_SIZE = 14;
+    private static final double COIN_GAP = 4;
     private static final Color SHAFT_COLOR = Color.web("#3B2A1E");
     private static final Color LOCKED_COLOR = Color.web("#7A7A7A");
     private static final Color BUYABLE_COLOR = Color.web("#3E8E41");
@@ -324,10 +327,27 @@ public class MineView implements Renderable {
         gc.setFill(Color.WHITE);
         double textY = y + ROOM_HEIGHT / 2;
         gc.fillText("Unlock floor " + (index + 1), getCrateX(), textY);
-        String detail = mine.canUnlockNextFloor()
-                ? "Cost: " + NumberFormatter.format(mine.getNextFloorCost()) + " coins"
-                : "Barrier: upgrade floor " + index + " first";
-        gc.fillText(detail, getCrateX(), textY + ROOM_MARGIN);
+        double detailY = textY + ROOM_MARGIN;
+        if (!mine.canUnlockNextFloor()) {
+            gc.fillText("Barrier: upgrade floor " + index + " first", getCrateX(), detailY);
+            return;
+        }
+        String cost = "Cost: " + NumberFormatter.format(mine.getNextFloorCost());
+        gc.fillText(cost, getCrateX(), detailY);
+        drawCoin(getCrateX() + textWidth(cost) + COIN_GAP, detailY);
+    }
+
+    /**
+     * Draws the coin icon after a text, its bottom on the text baseline.
+     */
+    private void drawCoin(double x, double baselineY) {
+        gc.drawImage(CoinIcon.IMAGE, x, baselineY - COIN_SIZE + 2, COIN_SIZE, COIN_SIZE);
+    }
+
+    private double textWidth(String text) {
+        Text measured = new Text(text);
+        measured.setFont(gc.getFont());
+        return measured.getLayoutBounds().getWidth();
     }
 
     /**

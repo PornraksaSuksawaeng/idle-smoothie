@@ -18,6 +18,7 @@ import javafx.scene.layout.VBox;
 public class ShopView implements Renderable {
 
     private static final double SPACING = 10;
+    private static final double COIN_SIZE = 16;
     private static final String OVERLAY_STYLE = "-fx-background-color: rgba(0, 0, 0, 0.6);";
     private static final String CARD_STYLE = "-fx-background-color: white; -fx-background-radius: 12;"
             + " -fx-padding: 20;";
@@ -45,6 +46,7 @@ public class ShopView implements Renderable {
 
         titleLabel.setStyle(TITLE_STYLE);
         hireButton.setOnAction(e -> hire());
+        CoinIcon.addTo(hireButton, COIN_SIZE);
         Button closeButton = new Button("Close");
         closeButton.setOnAction(e -> hide());
 
@@ -91,8 +93,8 @@ public class ShopView implements Renderable {
         } else {
             showManager(managerLabel, "Current: ", manager);
         }
-        String replace = manager == null ? "" : " (replaces current)";
-        hireButton.setText("Hire: " + NumberFormatter.format(game.getManagerCost(selected)) + " coins" + replace);
+        String action = manager == null ? "Hire: " : "Replace: ";
+        hireButton.setText(action + NumberFormatter.format(game.getManagerCost(selected)));
         hireButton.setDisable(!game.canHireManager(selected));
     }
 

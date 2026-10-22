@@ -21,6 +21,7 @@ import javafx.scene.layout.VBox;
 public class UpgradePanel implements Renderable {
 
     private static final double SPACING = 10;
+    private static final double COIN_SIZE = 16;
     private static final String OVERLAY_STYLE = "-fx-background-color: rgba(0, 0, 0, 0.6);";
     private static final String CARD_STYLE = "-fx-background-color: white; -fx-background-radius: 12;"
             + " -fx-padding: 20;";
@@ -56,6 +57,7 @@ public class UpgradePanel implements Renderable {
         }
         modeButtons.setAlignment(Pos.CENTER);
         upgradeButton.setOnAction(e -> controller.onUpgrade(selected));
+        CoinIcon.addTo(upgradeButton, COIN_SIZE);
         Button closeButton = new Button("Close");
         closeButton.setOnAction(e -> hide());
 
@@ -101,7 +103,7 @@ public class UpgradePanel implements Renderable {
                 stats.getSpeed(), NumberFormatter.format(stats.getCapacity()),
                 NumberFormatter.format(selected.getThroughput())));
         upgradeButton.setText("Upgrade " + mode.name() + ": "
-                + NumberFormatter.format(game.getUpgradeCost(selected, mode)) + " coins");
+                + NumberFormatter.format(game.getUpgradeCost(selected, mode)));
         upgradeButton.setDisable(!game.canUpgrade(selected, mode));
         for (var node : modeButtons.getChildren()) {
             node.setStyle(node.getUserData() == mode ? SELECTED_MODE_STYLE : "");
