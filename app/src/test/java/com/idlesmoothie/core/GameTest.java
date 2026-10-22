@@ -397,4 +397,43 @@ class GameTest {
 
         assertEquals(before, game.createSnapshot());
     }
+
+    @Test
+    void resetStartsTheGameOver() {
+        Game game = newGame();
+        wallet.addCoins(1e9);
+        game.buyNextFloor();
+        game.upgrade(game.getMine().getElevator(), BuyMode.X10);
+        game.hireManager(game.getMine().getSellStation());
+        GameSnapshot newGame = newGame().createSnapshot();
+
+        game.reset();
+
+        assertEquals(new GameSnapshot(0, newGame.floorLevels(), newGame.elevatorLevel(), newGame.sellLevel(),
+                newGame.managers()), game.createSnapshot());
+    }
+
+    @Test
+    void gameKeepsWorkingAfterReset() {
+        Game game = newGame();
+        game.reset();
+
+        game.tapFloor(0);
+        run(game, 1 / config.getFloorTripSpeed() + 0.1);
+
+        assertTrue(game.getMine().getFloors().get(0).getStoredAmount() > 0);
+    }
+
+    @Test
+    void resetGameCanLoadASave() {
+        GameSnapshot saved = newGame().createSnapshot();
+        Game game = newGame();
+        wallet.addCoins(1e9);
+        game.buyNextFloor();
+
+        game.reset();
+        game.restore(saved);
+
+        assertEquals(saved, game.createSnapshot());
+    }
 }
