@@ -17,6 +17,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
@@ -29,7 +30,10 @@ import javafx.util.Duration;
 public class IdleSmoothieApp extends Application {
 
     private static final double HUD_MARGIN = 12;
-    private static final double SETTINGS_ICON_SIZE = 44;
+    private static final double SETTINGS_ICON_SIZE = 30;
+    // Turns the gear white, like the texts of the HUD: no color, much brighter.
+    private static final double GEAR_SATURATION = -1;
+    private static final double GEAR_BRIGHTNESS = 0.75;
     private static final double HOVER_SCALE = 1.1;
     private static final Duration HOVER_DURATION = Duration.millis(150);
 
@@ -69,7 +73,9 @@ public class IdleSmoothieApp extends Application {
         StackPane.setAlignment(settingsButton, Pos.TOP_RIGHT);
         StackPane.setMargin(settingsButton, new Insets(HUD_MARGIN));
         stage.setTitle("Idle Smoothie");
-        stage.setScene(new Scene(root, 540, 960));
+        Scene scene = new Scene(root, 540, 960);
+        scene.getStylesheets().add(getClass().getResource("/styles/game-ui.css").toExternalForm());
+        stage.setScene(scene);
         stage.setResizable(false);
         stage.show();
 
@@ -110,7 +116,7 @@ public class IdleSmoothieApp extends Application {
     private Button createSettingsButton(SettingsView settingsView) {
         Button button = new Button();
         button.setGraphic(settingsIcon());
-        button.setStyle("-fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand;");
+        button.getStyleClass().add("hud-round-button");
         ScaleTransition zoom = new ScaleTransition(HOVER_DURATION, button);
         button.setOnMouseEntered(e -> zoomTo(zoom, HOVER_SCALE));
         button.setOnMouseExited(e -> zoomTo(zoom, 1));
@@ -139,6 +145,7 @@ public class IdleSmoothieApp extends Application {
         icon.setFitWidth(SETTINGS_ICON_SIZE);
         icon.setFitHeight(SETTINGS_ICON_SIZE);
         icon.setSmooth(true);
+        icon.setEffect(new ColorAdjust(0, GEAR_SATURATION, GEAR_BRIGHTNESS, 0));
         return icon;
     }
 }
