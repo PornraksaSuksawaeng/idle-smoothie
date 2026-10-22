@@ -27,6 +27,9 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.Stop;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -53,6 +56,29 @@ public class MineView implements Renderable {
     private static final double ROOM_IMAGE_HEIGHT = 520;
     private static final double ROOM_IMAGE_GROUND = 245;
     private static final double ROOM_IMAGE_FLOOR_END = 385;
+    // Center of the drill body of the extractor in the room image, in image pixels: the floor "Lv" button sits on it.
+    private static final double ROOM_IMAGE_EXTRACTOR_X = 820;
+    private static final double ROOM_IMAGE_EXTRACTOR_Y = 140;
+    // Where the floor sign hangs in the room image, in image pixels: between the shaft and the first torch,
+    // from the bottom of the ceiling beam.
+    private static final double ROOM_IMAGE_SIGN_X = 230;
+    private static final double ROOM_IMAGE_CEILING_Y = 38;
+    // The sign is as wide as its number plus this margin on each side, and never narrower than SIGN_MIN_WIDTH.
+    private static final double SIGN_PADDING_X = 8;
+    private static final double SIGN_MIN_WIDTH = 34;
+    private static final double SIGN_HEIGHT = 24;
+    private static final double SIGN_ROPE_LENGTH = 8;
+    // Distance of each rope from the side of the sign.
+    private static final double SIGN_ROPE_INSET = 7;
+    private static final double SIGN_RADIUS = 7;
+    private static final double SIGN_BORDER_WIDTH = 2;
+    private static final double SIGN_NAIL_RADIUS = 1.5;
+    private static final Color SIGN_WOOD_LIGHT = Color.web("#C98A4B");
+    private static final Color SIGN_WOOD_DARK = Color.web("#9A6232");
+    private static final Color SIGN_ROPE_COLOR = Color.web("#5C3A1E");
+    private static final Color SIGN_NAIL_COLOR = Color.web("#D8D8D8");
+    private static final double SIGN_FONT_SIZE = 16;
+    private static final Font SIGN_FONT = loadSignFont();
     private static final double EDGE_HEIGHT = 20;
     private static final double GRASS_HEIGHT = 16;
     private static final double GROUND_RAISE = 7;
@@ -60,6 +86,10 @@ public class MineView implements Renderable {
     private static final double SHAFT_WIDTH = 110;
     private static final double ROOM_MARGIN = 20;
     private static final double BOX_SIZE = 40;
+    // The crate image is a bit wider than the box the Pulpies walk to, and centered on it.
+    private static final double CRATE_WIDTH = 52;
+    // Distance between the top of the crate and the middle of the quantity written above it.
+    private static final double CRATE_TEXT_GAP = 13;
     private static final double PULPIE_SIZE = 24;
     private static final double PULPIE_SPRITE_SIZE = 80;
     /**
@@ -147,6 +177,9 @@ public class MineView implements Renderable {
     private final Image elevatorImage;
     private final Image headframeImage;
     private final Image smoothieIcon;
+    private final Image emptyCrateImage;
+    // The full crate of each fruit, with bottles of its color, indexed by fruit.
+    private final Image[] fullCrateImages;
     private final PulpieSprites pulpieSprites;
     private final Game game;
     private Mine mine;
@@ -197,6 +230,8 @@ public class MineView implements Renderable {
         this.elevatorImage = loadImage("/images/mine/elevator.png");
         this.headframeImage = loadImage("/images/mine/headframe.png");
         this.smoothieIcon = loadImage("/images/ui/smoothie.png");
+        this.emptyCrateImage = loadImage("/images/mine/crate_empty.png");
+        this.fullCrateImages = loadFruitImages("crate_");
         this.pulpieSprites = new PulpieSprites(PULPIE_SPRITE_SIZE);
     }
 
@@ -218,6 +253,10 @@ public class MineView implements Renderable {
         List<Floor> floors = mine.getFloors();
         for (int i = floors.size() - 1; i >= 0; i--) {
             drawFloor(floors.get(i));
+        }
+        // After every floor, since the dirt at the bottom of a room image covers the top of the room below.
+        for (Floor floor : floors) {
+            drawFloorSign(floor, floorY(floor.getIndex()) - scrollY);
         }
         drawGround();
         for (int i = floors.size(); i < mine.getMaxFloors(); i++) {
@@ -366,17 +405,13 @@ public class MineView implements Renderable {
             gc.fillRect(getRoomX(), y + roomHeight, getRoomWidth(), floorHeight - roomHeight);
             drawDirtEdge(SOIL_COLORS[fruit.ordinal()], getRoomX(), y + floorHeight, getRoomWidth());
         }
-        gc.setFill(Color.WHITE);
-        gc.fillText("Floor " + (floor.getIndex() + 1), getCrateX(), y + EDGE_HEIGHT + ROOM_MARGIN);
 
         double boxY = getGroundY(y) - BOX_SIZE;
-        gc.setFill(CRATE_COLOR);
-        gc.fillRect(getCrateX(), boxY, BOX_SIZE, BOX_SIZE);
         if (image == null) {
             gc.setFill(EXTRACTOR_COLOR);
             gc.fillRect(getExtractorX(), boxY, BOX_SIZE, BOX_SIZE);
         }
-        drawLabel(NumberFormatter.format(floor.getStoredAmount()), getCrateX(), boxY - ROOM_MARGIN);
+        drawCrate(floor, getGroundY(y));
 
         for (Pulpie pulpie : floor.getPulpies()) {
             drawPulpie(pulpie, fruit, y);
@@ -676,6 +711,96 @@ public class MineView implements Renderable {
     }
 
     /**
+     * Draws the floor number on a small wooden sign hanging from the ceiling by two ropes.
+     */
+    private void drawFloorSign(Floor floor, double floorScreenY) {
+        double centerX;
+        double ceilingY;
+        if (roomImages[floor.getFruit().ordinal()] != null) {
+            double roomScale = canvas.getWidth() / ROOM_IMAGE_WIDTH;
+            centerX = ROOM_IMAGE_SIGN_X * roomScale;
+            ceilingY = floorScreenY + ROOM_IMAGE_CEILING_Y * roomScale;
+        } else {
+            centerX = getCrateX() + SIGN_MIN_WIDTH / 2;
+            ceilingY = floorScreenY + EDGE_HEIGHT;
+        }
+        String number = String.valueOf(floor.getIndex() + 1);
+        gc.save();
+        gc.setFont(SIGN_FONT);
+        double width = Math.max(SIGN_MIN_WIDTH, textWidth(number) + 2 * SIGN_PADDING_X);
+        gc.restore();
+        double left = centerX - width / 2;
+        double top = ceilingY + SIGN_ROPE_LENGTH;
+        double[] ropes = {left + SIGN_ROPE_INSET, left + width - SIGN_ROPE_INSET};
+
+        gc.setStroke(SIGN_ROPE_COLOR);
+        gc.setLineWidth(SIGN_BORDER_WIDTH);
+        for (double ropeX : ropes) {
+            gc.strokeLine(ropeX, ceilingY, ropeX, top + SIGN_NAIL_RADIUS);
+        }
+        gc.setFill(new LinearGradient(0, top, 0, top + SIGN_HEIGHT, false, CycleMethod.NO_CYCLE,
+                new Stop(0, SIGN_WOOD_LIGHT), new Stop(1, SIGN_WOOD_DARK)));
+        gc.fillRoundRect(left, top, width, SIGN_HEIGHT, SIGN_RADIUS, SIGN_RADIUS);
+        gc.setStroke(BUTTON_BORDER_COLOR);
+        gc.strokeRoundRect(left, top, width, SIGN_HEIGHT, SIGN_RADIUS, SIGN_RADIUS);
+        gc.setFill(SIGN_NAIL_COLOR);
+        for (double ropeX : ropes) {
+            gc.fillOval(ropeX - SIGN_NAIL_RADIUS, top + SIGN_NAIL_RADIUS, 2 * SIGN_NAIL_RADIUS, 2 * SIGN_NAIL_RADIUS);
+        }
+        drawCenteredText(number, centerX, top + SIGN_HEIGHT / 2 + 1, SIGN_FONT);
+    }
+
+    /**
+     * @return the Lilita One font of the popups for the floor signs, or a bold system font if the file is missing
+     */
+    private static Font loadSignFont() {
+        InputStream stream = MineView.class.getResourceAsStream("/fonts/LilitaOne-Regular.ttf");
+        Font font = stream == null ? null : Font.loadFont(stream, SIGN_FONT_SIZE);
+        return font != null ? font : Font.font("System", FontWeight.BOLD, SIGN_FONT_SIZE);
+    }
+
+    /**
+     * Draws the crate of the floor standing on the ground where the Pulpies drop their smoothie:
+     * empty, or full of bottles of the floor fruit color, with the quantity it holds written just above it. Falls back to a plain box if the image is missing.
+     */
+    private void drawCrate(Floor floor, double groundScreenY) {
+        String amount = NumberFormatter.format(floor.getStoredAmount());
+        double centerX = getCrateX() + BOX_SIZE / 2;
+        // Every crate image has the same size with the box at the same place, only the bottles stick out.
+        Image crateImage = floor.isCrateEmpty() ? emptyCrateImage : fullCrateImages[floor.getFruit().ordinal()];
+        if (crateImage == null) {
+            gc.setFill(CRATE_COLOR);
+            gc.fillRect(getCrateX(), groundScreenY - BOX_SIZE, BOX_SIZE, BOX_SIZE);
+            drawCenteredText(amount, centerX, groundScreenY - BOX_SIZE / 2);
+            return;
+        }
+        double height = crateImage.getHeight() * CRATE_WIDTH / crateImage.getWidth();
+        double top = groundScreenY - height;
+        gc.drawImage(crateImage, centerX - CRATE_WIDTH / 2, top, CRATE_WIDTH, height);
+        drawCenteredText(amount, centerX, top - CRATE_TEXT_GAP);
+    }
+
+    /**
+     * @return where the square "Lv" button of the floor is: on the drill body of the extractor of the room image,
+     *         or on the extractor box if the image is missing, in world coordinates
+     */
+    private Box getExtractorLevelButton(Floor floor) {
+        double top = floorY(floor.getIndex());
+        double centerX;
+        double centerY;
+        if (roomImages[floor.getFruit().ordinal()] != null) {
+            double roomScale = canvas.getWidth() / ROOM_IMAGE_WIDTH;
+            centerX = ROOM_IMAGE_EXTRACTOR_X * roomScale;
+            centerY = top + ROOM_IMAGE_EXTRACTOR_Y * roomScale;
+        } else {
+            centerX = getExtractorX() + BOX_SIZE / 2;
+            centerY = top + roomHeight - BOX_SIZE / 2;
+        }
+        return new Box(centerX - LEVEL_BUTTON_SIZE / 2, centerY - LEVEL_BUTTON_SIZE / 2,
+                LEVEL_BUTTON_SIZE, LEVEL_BUTTON_SIZE);
+    }
+
+    /**
      * @return where the square "Lv" button of the elevator is: on the crossing of the X beams of the headframe,
      *         or above the parked cabin if the image is missing, in world coordinates
      */
@@ -730,7 +855,7 @@ public class MineView implements Renderable {
     private void drawLevelButton(Station station) {
         Box box = getLevelButton(station);
         double y = box.y() - scrollY;
-        if (station.getType() == StationType.ELEVATOR) {
+        if (station.getType() != StationType.SELL) {
             drawSquareLevelButton(station, box.x(), y, box.width());
             return;
         }
@@ -745,8 +870,7 @@ public class MineView implements Renderable {
      */
     private Box getLevelButton(Station station) {
         return switch (station.getType()) {
-            case FLOOR -> new Box(getExtractorX() + BOX_SIZE - LEVEL_WIDTH,
-                    floorY(((Floor) station).getIndex()) + EDGE_HEIGHT + CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+            case FLOOR -> getExtractorLevelButton((Floor) station);
             case ELEVATOR -> getHeadframeLevelButton();
             case SELL -> new Box(getBarX() + (BAR_SIZE - LEVEL_WIDTH) / 2,
                     getBarWorldY() + (BAR_SIZE - LEVEL_HEIGHT) / 2, LEVEL_WIDTH, LEVEL_HEIGHT);
@@ -771,7 +895,8 @@ public class MineView implements Renderable {
     private Box getManagerButton(Station station) {
         Box level = getLevelButton(station);
         return switch (station.getType()) {
-            case FLOOR -> new Box(level.x() - LEVEL_WIDTH - CABIN_MARGIN, level.y(), LEVEL_WIDTH, LEVEL_HEIGHT);
+            case FLOOR -> new Box(getExtractorX() + BOX_SIZE - 2 * LEVEL_WIDTH - CABIN_MARGIN,
+                    floorY(((Floor) station).getIndex()) + EDGE_HEIGHT + CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
             case ELEVATOR -> new Box(getElevatorManagerX() + MANAGER_WIDTH + CABIN_MARGIN,
                 SURFACE_HEIGHT - 2 * (LEVEL_HEIGHT + CABIN_MARGIN), LEVEL_WIDTH, LEVEL_HEIGHT);
             case SELL -> new Box(level.x(), level.y() + LEVEL_HEIGHT + CABIN_MARGIN / 2, LEVEL_WIDTH, LEVEL_HEIGHT);
