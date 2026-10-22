@@ -60,6 +60,18 @@ public final class UpgradeService {
         return costOf(station, levelsFor(station, mode));
     }
 
+    /**
+     * Returns how many levels {@link #buy} would add now, without buying anything.
+     * With {@link BuyMode#MAX} and the wallet too short for one level, it returns 1, like {@link #previewCost}.
+     *
+     * @param station the station to level up
+     * @param mode how many levels to buy
+     * @return the number of levels, 0 at the maximum level
+     */
+    public int previewLevels(Upgradable station, BuyMode mode) {
+        return levelsFor(station, mode);
+    }
+
     // Never more than the levels left before the maximum level.
     private int levelsFor(Upgradable station, BuyMode mode) {
         int levels = switch (mode) {
