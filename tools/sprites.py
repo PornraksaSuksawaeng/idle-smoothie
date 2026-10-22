@@ -4,8 +4,10 @@
 Reads   art/raw/<fruit>/<animation>.png          (a grid sheet)
    or   art/raw/<fruit>/<animation>/01.png ...   (one image per frame)
         art/raw/managers/rarities.png            (the five managers, COMMON to MYTHIC, or a rarities/ folder)
+        art/raw/managers/ghost.png               (the ghost of an empty manager slot, or a ghost/ folder)
 Writes  app/src/main/resources/images/pulpies/<fruit>/<animation>.png   (one row of CELL x CELL frames)
         app/src/main/resources/images/managers/rarities.png             (one row, one cell per rarity)
+        app/src/main/resources/images/managers/ghost.png                (one cell)
         art/preview/<fruit>_<animation>.gif     (the loop)
         art/preview/<fruit>_all.gif             (every animation of the fruit side by side)
         art/preview/managers.png                (each manager next to the reference Pulpie)
@@ -56,7 +58,9 @@ OFFSET_FIX = {
 }
 
 MANAGERS = "managers"
-MANAGER_GRID = (5, 1)                       # COMMON, RARE, EPIC, LEGENDARY, MYTHIC, left to right
+# manager sheet -> (columns, rows): the five rarities, COMMON to MYTHIC left to right, and the ghost of
+# an empty manager slot; each is measured and sized on its own
+MANAGER_SHEETS = {"rarities": (5, 1), "ghost": (1, 1)}
 MANAGER_REFERENCE = ("strawberry", "idle")  # the managers get the body size of this Pulpie sheet
 MANAGER_SCALE_FIX = 0.77                    # share of the Pulpie's body size; at 1.0 the hat needs a taller cell
 MANAGER_CELL = (256, 256)                   # the feet stay CELL - GROUND_Y pixels above the bottom and the
@@ -426,13 +430,21 @@ def write_comparison(fruit, sheets):
 
 
 def pack_managers():
-    """Packs the rarities sheet with one scale, so the managers' bodies match the reference Pulpie's body."""
-    frames = load_frames(MANAGERS, "rarities", MANAGER_GRID)
+    """Packs every manager sheet, then the preview that compares them with the reference Pulpie."""
+    sheets = {name: pack_manager_sheet(name, grid) for name, grid in MANAGER_SHEETS.items()}
+    if sheets["rarities"] is not None:
+        write_manager_preview(sheets["rarities"], sheets["ghost"])
+    return any(cells is not None for cells in sheets.values())
+
+
+def pack_manager_sheet(name, grid):
+    """Packs one manager sheet with one scale, so the managers' bodies match the reference Pulpie's body."""
+    frames = load_frames(MANAGERS, name, grid)
     if frames is None:
-        print(f"{MANAGERS:13} skipped, no rarities.png or rarities/ in {(RAW / MANAGERS).relative_to(ROOT)}/")
-        return False
-    measures, _ = choose_feet({"rarities": [measure(frame, main) for frame, main in frames]})
-    measures = measures["rarities"]
+        print(f"{MANAGERS:13} {name}: skipped, no {name}.png or {name}/ in {(RAW / MANAGERS).relative_to(ROOT)}/")
+        return None
+    measures, _ = choose_feet({name: [measure(frame, main) for frame, main in frames]})
+    measures = measures[name]
     bodies = [body_height(main, feet) for (_, main), (_, feet, _) in zip(frames, measures)]
     measures = [(upper_body_x(main, feet, body), feet, top)
                 for (_, main), (_, feet, top), body in zip(frames, measures, bodies)]
@@ -441,35 +453,39 @@ def pack_managers():
     # The hat makes a manager much taller than a Pulpie of the same body size: keep it inside the cell.
     fit = (ground_line(MANAGER_CELL[1]) - EDGE_MARGIN) / max(feet - top for _, feet, top in measures)
     scale = min(match, fit)
-    cells, _, _, clipped = pack(MANAGERS, "rarities", frames, measures, scale, MANAGER_CELL, MANAGER_CELL[0] // 2)
-    path = write_sheet(MANAGERS_OUT / "rarities.png", cells)
-    write_manager_preview(cells)
-    note = (f"  WARNING: frames {clipped} reach the {EDGE_MARGIN}px cell margin; "
+    cells, _, _, clipped = pack(MANAGERS, name, frames, measures, scale, MANAGER_CELL, MANAGER_CELL[0] // 2)
+    path = write_sheet(MANAGERS_OUT / f"{name}.png", cells)
+    note =(f"  WARNING: frames {clipped} reach the {EDGE_MARGIN}px cell margin; "
             f"move them with OFFSET_FIX or shrink them with MANAGER_SCALE_FIX" if clipped else "")
     full = reference / statistics.median(bodies)
     size = f"body {scale / full:.0%} of the Pulpie's" + (
         "" if scale == match else f", capped to fit the cell (raise the height of MANAGER_CELL for more)")
-    print(f"{MANAGERS:13} rarities {len(cells)} frames  body {statistics.median(bodies):6.1f}px  "
+    print(f"{MANAGERS:13} {name:8} {len(cells)} frames  body {statistics.median(bodies):6.1f}px  "
           f"scale {scale:.3f}, {size}  -> {path.relative_to(ROOT)}{note}")
-    return True
+    return cells
 
 
-def write_manager_preview(cells):
-    """Each manager next to the first frame of the reference Pulpie, on the same ground line."""
+def write_manager_preview(cells, ghost=None):
+    """Each manager next to the first frame of the reference Pulpie, then the ghost next to COMMON."""
     fruit, animation = MANAGER_REFERENCE
     pulpie = Image.open(OUT / fruit / f"{animation}.png").convert("RGBA").crop((0, 0, CELL, CELL))
     names = ["COMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"]
+    pairs = [(names[index] if index < len(names) else str(index + 1), cell, f"{fruit} {animation}", pulpie)
+             for index, cell in enumerate(cells)]
+    if ghost is not None:
+        pairs.append(("GHOST", ghost[0], names[0], cells[0]))
     label_height = 18
     width, height = cells[0].size
-    image = Image.new("RGB", ((width + CELL) * len(cells), height + label_height), "white")
+    image = Image.new("RGB", ((width + CELL) * len(pairs), height + label_height), "white")
     draw = ImageDraw.Draw(image)
-    for index, cell in enumerate(cells):
+    for index, (name, cell, other_name, other) in enumerate(pairs):
         x = (width + CELL) * index
         image.paste(on_background(cell, guides=True, body_x=width // 2), (x, label_height))
         # both cells keep their feet the same distance above the bottom, so align the bottoms
-        image.paste(on_background(pulpie, guides=True), (x + width, label_height + height - CELL))
-        draw.text((x + 6, 3), names[index] if index < len(names) else str(index + 1), fill="black")
-        draw.text((x + width + 6, 3), f"{fruit} {animation}", fill="gray")
+        other_x = width // 2 if other.size == cell.size else BODY_X
+        image.paste(on_background(other, guides=True, body_x=other_x), (x + width, label_height + height - other.height))
+        draw.text((x + 6, 3), name, fill="black")
+        draw.text((x + width + 6, 3), other_name, fill="gray")
     PREVIEW.mkdir(parents=True, exist_ok=True)
     image.save(PREVIEW / "managers.png")
 
