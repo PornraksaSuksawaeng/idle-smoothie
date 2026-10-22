@@ -328,7 +328,9 @@ public class MineView implements Renderable {
         drawSurfaceStock();
         drawSellStation();
         for (Station station : getStations()) {
-            drawManager(station);
+            if (!(station instanceof Floor)) {
+                drawManager(station);
+            }
             drawLevelButton(station);
             drawManagerButton(station);
         }
@@ -471,6 +473,8 @@ public class MineView implements Renderable {
         }
         drawCrate(floor, getGroundY(y));
 
+        // The manager stands behind the Pulpies that come to deposit in front of it.
+        drawManager(floor);
         for (Pulpie pulpie : floor.getPulpies()) {
             drawPulpie(pulpie, fruit, y);
         }
