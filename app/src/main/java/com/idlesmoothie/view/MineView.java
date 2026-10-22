@@ -1132,7 +1132,8 @@ public class MineView implements Renderable {
             case ELEVATOR -> getElevatorManagerX();
             case SELL -> getBarX() - MANAGER_SPACE - MANAGER_GAP;
         };
-        double groundY = station instanceof Floor floor ? floorY(floor.getIndex()) + roomHeight : SURFACE_HEIGHT;
+        // At the surface, managers stand in the grass like the bar, a bit below the top of the ground.
+        double groundY = station instanceof Floor floor ? floorY(floor.getIndex()) + roomHeight : SURFACE_HEIGHT + BAR_SINK;
         return new Box(x, groundY - getManagerHeight(), MANAGER_SPACE, getManagerHeight());
     }
 
