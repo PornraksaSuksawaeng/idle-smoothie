@@ -115,7 +115,14 @@ public class MineView implements Renderable {
     private static final Color BAR_COLOR = Color.web("#E85D9A");
     private static final Color PROGRESS_COLOR = Color.web("#6CC644");
     private static final Color LABEL_BACKGROUND = Color.rgb(0, 0, 0, 0.6);
-    private static final Color STOCK_BACKGROUND = Color.rgb(20, 12, 6, 0.8);
+    private static final double STOCK_TEXT_GAP = 16;
+    private static final double STOCK_ICON_SIZE = 26;
+    private static final double STOCK_ICON_GAP = 2;
+    // A soft pill behind the stock, in the dark wood color of the headframe, light enough to let the sky through.
+    private static final Color STOCK_PILL_COLOR = Color.rgb(61, 35, 20, 0.35);
+    private static final double STOCK_PILL_PADDING_X = 8;
+    private static final double STOCK_PILL_PADDING_Y = 2;
+    private static final Font STOCK_FONT = Font.font("System", FontWeight.BOLD, 15);
     private static final Color GRASS_COLOR = Color.web("#5DAA3C");
     private static final Color TOP_DIRT_COLOR = Color.web("#B5845A");
     private static final Color BARRIER_COLOR = Color.web("#6B6B6B");
@@ -139,6 +146,7 @@ public class MineView implements Renderable {
     private final Image shaftBottomImage;
     private final Image elevatorImage;
     private final Image headframeImage;
+    private final Image smoothieIcon;
     private final PulpieSprites pulpieSprites;
     private final Game game;
     private Mine mine;
@@ -188,6 +196,7 @@ public class MineView implements Renderable {
         this.shaftBottomImage = loadImage("/images/mine/shaft_bottom.png");
         this.elevatorImage = loadImage("/images/mine/elevator.png");
         this.headframeImage = loadImage("/images/mine/headframe.png");
+        this.smoothieIcon = loadImage("/images/ui/smoothie.png");
         this.pulpieSprites = new PulpieSprites(PULPIE_SPRITE_SIZE);
     }
 
@@ -606,8 +615,15 @@ public class MineView implements Renderable {
      * Writes a small white text with a dark outline, centered on the given point, readable over any image.
      */
     private void drawCenteredText(String text, double centerX, double centerY) {
+        drawCenteredText(text, centerX, centerY, CABIN_FONT);
+    }
+
+    /**
+     * Writes a white text with a dark outline in the given font, centered on the given point.
+     */
+    private void drawCenteredText(String text, double centerX, double centerY, Font font) {
         gc.save();
-        gc.setFont(CABIN_FONT);
+        gc.setFont(font);
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
         gc.setLineWidth(TEXT_OUTLINE_WIDTH);
@@ -632,21 +648,31 @@ public class MineView implements Renderable {
         return firstGround + (position - 1) * floorHeight;
     }
 
-    private void drawSurfaceStock() {
-        Box box = getStockBox();
-        double y = box.y() - scrollY;
-        gc.setFill(STOCK_BACKGROUND);
-        gc.fillRoundRect(box.x(), y, box.width(), box.height(), BUTTON_RADIUS, BUTTON_RADIUS);
-        drawCenteredText(NumberFormatter.format(mine.getSurfaceAmount()),
-                box.x() + box.width() / 2, y + box.height() / 2);
-    }
-
     /**
-     * @return where the surface stock is shown, on the ground right of the elevator manager, in world coordinates
+     * Writes the smoothie waiting at the surface, after a smoothie icon, just above the roof of the headframe,
+     * or above the "Lv" button of the elevator if the image is missing.
      */
-    private Box getStockBox() {
-        return new Box(getElevatorManagerX() + MANAGER_WIDTH + CABIN_MARGIN,
-                SURFACE_HEIGHT - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+    private void drawSurfaceStock() {
+        double top = headframeImage == null
+                ? getHeadframeLevelButton().y()
+                : SURFACE_HEIGHT - headframeHeight() * HEADFRAME_PLATFORM_Y;
+        double centerY = top - STOCK_TEXT_GAP - scrollY;
+        String amount = NumberFormatter.format(mine.getSurfaceAmount());
+        gc.save();
+        gc.setFont(STOCK_FONT);
+        double amountWidth = textWidth(amount);
+        gc.restore();
+        // The icon and the amount are centered together over the headframe, without leaving the screen.
+        double iconWidth = smoothieIcon == null ? 0 : STOCK_ICON_SIZE + STOCK_ICON_GAP;
+        double left = Math.max(STOCK_PILL_PADDING_X, (SHAFT_WIDTH - iconWidth - amountWidth) / 2);
+        double pillHeight = STOCK_ICON_SIZE + 2 * STOCK_PILL_PADDING_Y;
+        gc.setFill(STOCK_PILL_COLOR);
+        gc.fillRoundRect(left - STOCK_PILL_PADDING_X, centerY - pillHeight / 2,
+                iconWidth + amountWidth + 2 * STOCK_PILL_PADDING_X, pillHeight, pillHeight, pillHeight);
+        if (smoothieIcon != null) {
+            gc.drawImage(smoothieIcon, left, centerY - STOCK_ICON_SIZE / 2, STOCK_ICON_SIZE, STOCK_ICON_SIZE);
+        }
+        drawCenteredText(amount, left + iconWidth + amountWidth / 2, centerY, STOCK_FONT);
     }
 
     /**
@@ -746,8 +772,8 @@ public class MineView implements Renderable {
         Box level = getLevelButton(station);
         return switch (station.getType()) {
             case FLOOR -> new Box(level.x() - LEVEL_WIDTH - CABIN_MARGIN, level.y(), LEVEL_WIDTH, LEVEL_HEIGHT);
-            case ELEVATOR -> new Box(getStockBox().x(), getStockBox().y() - LEVEL_HEIGHT - CABIN_MARGIN,
-                    LEVEL_WIDTH, LEVEL_HEIGHT);
+            case ELEVATOR -> new Box(getElevatorManagerX() + MANAGER_WIDTH + CABIN_MARGIN,
+                SURFACE_HEIGHT - 2 * (LEVEL_HEIGHT + CABIN_MARGIN), LEVEL_WIDTH, LEVEL_HEIGHT);
             case SELL -> new Box(level.x(), level.y() + LEVEL_HEIGHT + CABIN_MARGIN / 2, LEVEL_WIDTH, LEVEL_HEIGHT);
         };
     }
