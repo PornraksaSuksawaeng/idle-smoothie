@@ -17,12 +17,17 @@ import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Mine;
 import com.idlesmoothie.model.station.SellStation;
 import com.idlesmoothie.model.station.Station;
+import com.idlesmoothie.model.station.StationType;
 
+import javafx.geometry.VPos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 
 /**
  * Draws the underground mine on a canvas and lets the player scroll it vertically.
@@ -45,7 +50,7 @@ public class MineView implements Renderable {
     private static final double GRASS_HEIGHT = 16;
     private static final double GROUND_RAISE = 7;
     private static final double BARRIER_HEIGHT = 104;
-    private static final double SHAFT_WIDTH = 80;
+    private static final double SHAFT_WIDTH = 110;
     private static final double ROOM_MARGIN = 20;
     private static final double BOX_SIZE = 40;
     private static final double PULPIE_SIZE = 24;
@@ -54,6 +59,29 @@ public class MineView implements Renderable {
     private static final double MANAGER_GAP = 2;
     private static final double CABIN_MARGIN = 8;
     private static final double CABIN_HEIGHT = 60;
+    // Share of the shaft width that puts the guide clamps of the cabin image (at 26% and 74% of the cabin)
+    // exactly on the rails of the shaft texture (at 34% and 66% of the shaft).
+    private static final double CABIN_WIDTH_RATIO = (0.66 - 0.34) / (0.74 - 0.26);
+    // Center of the metal plate on the cabin image, as a fraction of the image height.
+    private static final double CABIN_SIGN_Y = 0.61;
+    // Width of the headframe, as a share of the shaft width: a bit wider, so its base rests on the edges,
+    // and its rails stay on the rails of the shaft since both are centered.
+    private static final double HEADFRAME_WIDTH_RATIO = 1.1;
+    // Top of the headframe platform, as a fraction of the image height: it stands at ground level.
+    private static final double HEADFRAME_PLATFORM_Y = 0.89;
+    // Center of the plate where the X beams of the headframe cross, as a fraction of the image height.
+    private static final double HEADFRAME_BUTTON_Y = 0.38;
+    private static final double LEVEL_BUTTON_SIZE = 44;
+    private static final double BUTTON_RADIUS = 12;
+    private static final double BUTTON_BORDER_WIDTH = 2.5;
+    private static final Color BUTTON_BORDER_COLOR = Color.web("#3D2314");
+    private static final Font LEVEL_CAPTION_FONT = Font.font("System", FontWeight.BOLD, 10);
+    private static final Font LEVEL_NUMBER_FONT = Font.font("System", FontWeight.BOLD, 17);
+    // Vertical places of "Lv" and of the level number in the square button, as fractions of its size.
+    private static final double LEVEL_CAPTION_Y = 0.28;
+    private static final double LEVEL_NUMBER_Y = 0.64;
+    private static final Font CABIN_FONT = Font.font("System", FontWeight.BOLD, 12);
+    private static final double TEXT_OUTLINE_WIDTH = 3;
     private static final double BAR_SIZE = 100;
     private static final double LEVEL_WIDTH = 64;
     private static final double LEVEL_HEIGHT = 24;
@@ -68,6 +96,7 @@ public class MineView implements Renderable {
     private static final Color BAR_COLOR = Color.web("#E85D9A");
     private static final Color PROGRESS_COLOR = Color.web("#6CC644");
     private static final Color LABEL_BACKGROUND = Color.rgb(0, 0, 0, 0.6);
+    private static final Color STOCK_BACKGROUND = Color.rgb(20, 12, 6, 0.8);
     private static final Color GRASS_COLOR = Color.web("#5DAA3C");
     private static final Color TOP_DIRT_COLOR = Color.web("#B5845A");
     private static final Color BARRIER_COLOR = Color.web("#6B6B6B");
@@ -86,6 +115,11 @@ public class MineView implements Renderable {
     private final Image[] roomImages;
     private final Image groundImage;
     private final Image barrierImage;
+    private final Image shaftTopImage;
+    private final Image shaftMiddleImage;
+    private final Image shaftBottomImage;
+    private final Image elevatorImage;
+    private final Image headframeImage;
     private final Game game;
     private Mine mine;
     private final UpgradeController controller;
@@ -120,6 +154,11 @@ public class MineView implements Renderable {
         this.roomImages = loadFruitImages("room_");
         this.groundImage = loadImage("/images/mine/ground.png");
         this.barrierImage = loadImage("/images/mine/barrier.png");
+        this.shaftTopImage = loadImage("/images/mine/shaft_top.png");
+        this.shaftMiddleImage = loadImage("/images/mine/shaft_middle.png");
+        this.shaftBottomImage = loadImage("/images/mine/shaft_bottom.png");
+        this.elevatorImage = loadImage("/images/mine/elevator.png");
+        this.headframeImage = loadImage("/images/mine/headframe.png");
     }
 
     /**
@@ -148,6 +187,7 @@ public class MineView implements Renderable {
             }
         }
         drawShaft();
+        drawHeadframe();
         drawElevator();
         drawSurfaceStock();
         drawSellStation();
@@ -383,23 +423,133 @@ public class MineView implements Renderable {
         }
     }
 
+    /**
+     * Draws the shaft from the surface down to the next floor to buy: the top beam, then the middle part
+     * repeated as many times as needed, and the bottom beam. Falls back to a plain color if an image is missing.
+     */
     private void drawShaft() {
+        double top = SURFACE_HEIGHT;
         double bottom = floorY(mine.getFloors().size());
-        gc.setFill(SHAFT_COLOR);
-        gc.fillRect(0, SURFACE_HEIGHT - scrollY, SHAFT_WIDTH, bottom - SURFACE_HEIGHT);
+        if (shaftTopImage == null || shaftMiddleImage == null || shaftBottomImage == null) {
+            gc.setFill(SHAFT_COLOR);
+            gc.fillRect(0, top - scrollY, SHAFT_WIDTH, bottom - top);
+            return;
+        }
+        double topHeight = scaledHeight(shaftTopImage);
+        double bottomHeight = scaledHeight(shaftBottomImage);
+        double tileHeight = scaledHeight(shaftMiddleImage);
+
+        // The last tile rarely fits: only its upper part is drawn, cut from the source image.
+        double tilesEnd = bottom - bottomHeight;
+        for (double y = top + topHeight; y < tilesEnd; y += tileHeight) {
+            double height = Math.min(tileHeight, tilesEnd - y);
+            if (isVisible(y, height)) {
+                double sourceHeight = shaftMiddleImage.getHeight() * height / tileHeight;
+                gc.drawImage(shaftMiddleImage, 0, 0, shaftMiddleImage.getWidth(), sourceHeight,
+                        0, y - scrollY, SHAFT_WIDTH, height);
+            }
+        }
+        gc.drawImage(shaftTopImage, 0, top - scrollY, SHAFT_WIDTH, topHeight);
+        gc.drawImage(shaftBottomImage, 0, tilesEnd - scrollY, SHAFT_WIDTH, bottomHeight);
+    }
+
+    /**
+     * @return the height of the image once drawn as wide as the shaft, keeping its proportions
+     */
+    private double scaledHeight(Image image) {
+        return image.getHeight() * SHAFT_WIDTH / image.getWidth();
+    }
+
+    /**
+     * @return whether a band of the world, from y and of the given height, is on screen
+     */
+    private boolean isVisible(double worldY, double height) {
+        return worldY + height > scrollY && worldY < scrollY + canvas.getHeight();
+    }
+
+    /**
+     * Draws the tower above the shaft, its platform at ground level, where the cabin parks at the surface.
+     * The cabin is drawn after it, so it passes in front of the tower.
+     */
+    private void drawHeadframe() {
+        if (headframeImage == null) {
+            return;
+        }
+        double width = headframeWidth();
+        double height = headframeHeight();
+        double x = (SHAFT_WIDTH - width) / 2;
+        double y = SURFACE_HEIGHT - height * HEADFRAME_PLATFORM_Y - scrollY;
+        gc.drawImage(headframeImage, x, y, width, height);
+    }
+
+    /**
+     * @return the height the headframe is drawn at, keeping the image proportions
+     */
+    private double headframeHeight() {
+        return headframeImage.getHeight() * headframeWidth() / headframeImage.getWidth();
+    }
+
+    /**
+     * @return the width the headframe is drawn at
+     */
+    private double headframeWidth() {
+        return SHAFT_WIDTH * HEADFRAME_WIDTH_RATIO;
+    }
+
+    /**
+     * At the surface, from left to right: the headframe, the elevator manager, its buttons, then the stock.
+     *
+     * @return the x where the elevator manager stands, just right of the headframe
+     */
+    private double getElevatorManagerX() {
+        return (SHAFT_WIDTH + headframeWidth()) / 2 + MANAGER_GAP;
     }
 
     /**
      * Draws the cabin so that its bottom matches the ground of the floor it is at:
-     * at position 0 it stands on the surface ground.
+     * at position 0 it stands on the surface ground. It is centered in the shaft, with its clamps on the rails,
+     * and shows its load on its metal plate. Falls back to a plain color if the image is missing.
      */
     private void drawElevator() {
         Elevator elevator = mine.getElevator();
-        double y = getCabinBottomY(elevator.getPosition()) - CABIN_HEIGHT - scrollY;
-        gc.setFill(CABIN_COLOR);
-        gc.fillRect(CABIN_MARGIN, y, SHAFT_WIDTH - 2 * CABIN_MARGIN, CABIN_HEIGHT);
-        gc.setFill(Color.BLACK);
-        gc.fillText(NumberFormatter.format(elevator.getCabinAmount()), 2 * CABIN_MARGIN, y + CABIN_HEIGHT / 2);
+        double width = SHAFT_WIDTH * CABIN_WIDTH_RATIO;
+        double x = (SHAFT_WIDTH - width) / 2;
+        double height = cabinHeight();
+        double y = getCabinBottomY(elevator.getPosition()) - height - scrollY;
+        if (elevatorImage != null) {
+            gc.drawImage(elevatorImage, x, y, width, height);
+        } else {
+            gc.setFill(CABIN_COLOR);
+            gc.fillRect(x, y, width, height);
+        }
+        drawCenteredText(NumberFormatter.format(elevator.getCabinAmount()),
+                SHAFT_WIDTH / 2, y + height * CABIN_SIGN_Y);
+    }
+
+    /**
+     * @return the height of the cabin once drawn at its width, keeping the image proportions
+     */
+    private double cabinHeight() {
+        if (elevatorImage == null) {
+            return CABIN_HEIGHT;
+        }
+        return elevatorImage.getHeight() * SHAFT_WIDTH * CABIN_WIDTH_RATIO / elevatorImage.getWidth();
+    }
+
+    /**
+     * Writes a small white text with a dark outline, centered on the given point, readable over any image.
+     */
+    private void drawCenteredText(String text, double centerX, double centerY) {
+        gc.save();
+        gc.setFont(CABIN_FONT);
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        gc.setLineWidth(TEXT_OUTLINE_WIDTH);
+        gc.setStroke(Color.BLACK);
+        gc.strokeText(text, centerX, centerY);
+        gc.setFill(Color.WHITE);
+        gc.fillText(text, centerX, centerY);
+        gc.restore();
     }
 
     /**
@@ -417,8 +567,53 @@ public class MineView implements Renderable {
     }
 
     private void drawSurfaceStock() {
-        double y = SURFACE_HEIGHT - ROOM_MARGIN - scrollY;
-        drawLabel("Stock: " + NumberFormatter.format(mine.getSurfaceAmount()), getRoomX(), y);
+        Box box = getStockBox();
+        double y = box.y() - scrollY;
+        gc.setFill(STOCK_BACKGROUND);
+        gc.fillRoundRect(box.x(), y, box.width(), box.height(), BUTTON_RADIUS, BUTTON_RADIUS);
+        drawCenteredText(NumberFormatter.format(mine.getSurfaceAmount()),
+                box.x() + box.width() / 2, y + box.height() / 2);
+    }
+
+    /**
+     * @return where the surface stock is shown, on the ground right of the elevator manager, in world coordinates
+     */
+    private Box getStockBox() {
+        return new Box(getElevatorManagerX() + MANAGER_WIDTH + CABIN_MARGIN,
+                SURFACE_HEIGHT - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+    }
+
+    /**
+     * @return where the square "Lv" button of the elevator is: on the crossing of the X beams of the headframe,
+     *         or above the parked cabin if the image is missing, in world coordinates
+     */
+    private Box getHeadframeLevelButton() {
+        double centerY = headframeImage == null
+                ? SURFACE_HEIGHT - cabinHeight() - LEVEL_BUTTON_SIZE
+                : SURFACE_HEIGHT - headframeHeight() * (HEADFRAME_PLATFORM_Y - HEADFRAME_BUTTON_Y);
+        return new Box((SHAFT_WIDTH - LEVEL_BUTTON_SIZE) / 2, centerY - LEVEL_BUTTON_SIZE / 2,
+                LEVEL_BUTTON_SIZE, LEVEL_BUTTON_SIZE);
+    }
+
+    /**
+     * Draws a square button with round corners and a dark frame: "Lv" on top and the level below,
+     * green when the player can afford the next upgrade.
+     */
+    private void drawSquareLevelButton(Station station, double x, double y, double size) {
+        gc.setFill(game.canUpgrade(station, controller.getMode()) ? BUYABLE_COLOR : LOCKED_COLOR);
+        gc.fillRoundRect(x, y, size, size, BUTTON_RADIUS, BUTTON_RADIUS);
+        gc.setStroke(BUTTON_BORDER_COLOR);
+        gc.setLineWidth(BUTTON_BORDER_WIDTH);
+        gc.strokeRoundRect(x, y, size, size, BUTTON_RADIUS, BUTTON_RADIUS);
+        gc.save();
+        gc.setFill(Color.WHITE);
+        gc.setTextAlign(TextAlignment.CENTER);
+        gc.setTextBaseline(VPos.CENTER);
+        gc.setFont(LEVEL_CAPTION_FONT);
+        gc.fillText("Lv", x + size / 2, y + size * LEVEL_CAPTION_Y);
+        gc.setFont(LEVEL_NUMBER_FONT);
+        gc.fillText(String.valueOf(station.getLevel()), x + size / 2, y + size * LEVEL_NUMBER_Y);
+        gc.restore();
     }
 
     /**
@@ -443,6 +638,10 @@ public class MineView implements Renderable {
     private void drawLevelButton(Station station) {
         Box box = getLevelButton(station);
         double y = box.y() - scrollY;
+        if (station.getType() == StationType.ELEVATOR) {
+            drawSquareLevelButton(station, box.x(), y, box.width());
+            return;
+        }
         gc.setFill(game.canUpgrade(station, controller.getMode()) ? BUYABLE_COLOR : LOCKED_COLOR);
         gc.fillRect(box.x(), y, box.width(), box.height());
         gc.setFill(Color.WHITE);
@@ -456,8 +655,7 @@ public class MineView implements Renderable {
         return switch (station.getType()) {
             case FLOOR -> new Box(getExtractorX() + BOX_SIZE - LEVEL_WIDTH,
                     floorY(((Floor) station).getIndex()) + EDGE_HEIGHT + CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
-            case ELEVATOR -> new Box(CABIN_MARGIN,
-                    SURFACE_HEIGHT - CABIN_HEIGHT - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+            case ELEVATOR -> getHeadframeLevelButton();
             case SELL -> new Box(getBarX() + (BAR_SIZE - LEVEL_WIDTH) / 2,
                     getBarWorldY() + (BAR_SIZE - LEVEL_HEIGHT) / 2, LEVEL_WIDTH, LEVEL_HEIGHT);
         };
@@ -482,7 +680,8 @@ public class MineView implements Renderable {
         Box level = getLevelButton(station);
         return switch (station.getType()) {
             case FLOOR -> new Box(level.x() - LEVEL_WIDTH - CABIN_MARGIN, level.y(), LEVEL_WIDTH, LEVEL_HEIGHT);
-            case ELEVATOR -> new Box(level.x(), level.y() - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
+            case ELEVATOR -> new Box(getStockBox().x(), getStockBox().y() - LEVEL_HEIGHT - CABIN_MARGIN,
+                    LEVEL_WIDTH, LEVEL_HEIGHT);
             case SELL -> new Box(level.x(), level.y() + LEVEL_HEIGHT + CABIN_MARGIN / 2, LEVEL_WIDTH, LEVEL_HEIGHT);
         };
     }
@@ -498,7 +697,7 @@ public class MineView implements Renderable {
         }
         double x = switch (station.getType()) {
             case FLOOR -> getManagerX();
-            case ELEVATOR -> SHAFT_WIDTH + MANAGER_GAP;
+            case ELEVATOR -> getElevatorManagerX();
             case SELL -> getBarX() - MANAGER_WIDTH - MANAGER_GAP;
         };
         double groundY = station instanceof Floor floor ? floorY(floor.getIndex()) + ROOM_HEIGHT : SURFACE_HEIGHT;
