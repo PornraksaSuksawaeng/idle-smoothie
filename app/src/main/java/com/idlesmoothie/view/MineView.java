@@ -3,9 +3,11 @@ package com.idlesmoothie.view;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.idlesmoothie.core.Game;
 import com.idlesmoothie.model.creature.CarryingState;
+import com.idlesmoothie.model.creature.DepositingState;
 import com.idlesmoothie.model.creature.FillingState;
 import com.idlesmoothie.model.creature.GoingToExtractorState;
 import com.idlesmoothie.model.creature.Pulpie;
@@ -18,6 +20,7 @@ import com.idlesmoothie.model.station.Mine;
 import com.idlesmoothie.model.station.SellStation;
 import com.idlesmoothie.model.station.Station;
 import com.idlesmoothie.model.station.StationType;
+import com.idlesmoothie.view.PulpieSprites.Animation;
 
 import javafx.geometry.VPos;
 import javafx.scene.canvas.Canvas;
@@ -58,6 +61,18 @@ public class MineView implements Renderable {
     private static final double ROOM_MARGIN = 20;
     private static final double BOX_SIZE = 40;
     private static final double PULPIE_SIZE = 24;
+    private static final double PULPIE_SPRITE_SIZE = 80;
+    /**
+     * Distance walked during one frame of the walk and carry animations, in pixels.
+     * The frame follows the distance, not the time, so the steps keep pace with the Pulpie at any speed.
+     */
+    private static final double WALK_STEP = 8;
+    private static final long IDLE_FRAME_NANOS = 250_000_000L;
+    private static final Map<Class<? extends PulpieState>, Animation> ANIMATIONS = Map.of(
+            GoingToExtractorState.class, Animation.WALK,
+            FillingState.class, Animation.FILL,
+            CarryingState.class, Animation.CARRY,
+            DepositingState.class, Animation.DEPOSIT);
     private static final double MANAGER_WIDTH = 24;
     private static final double MANAGER_HEIGHT = 48;
     private static final double MANAGER_GAP = 2;
@@ -124,6 +139,7 @@ public class MineView implements Renderable {
     private final Image shaftBottomImage;
     private final Image elevatorImage;
     private final Image headframeImage;
+    private final PulpieSprites pulpieSprites;
     private final Game game;
     private Mine mine;
     private final UpgradeController controller;
@@ -172,6 +188,7 @@ public class MineView implements Renderable {
         this.shaftBottomImage = loadImage("/images/mine/shaft_bottom.png");
         this.elevatorImage = loadImage("/images/mine/elevator.png");
         this.headframeImage = loadImage("/images/mine/headframe.png");
+        this.pulpieSprites = new PulpieSprites(PULPIE_SPRITE_SIZE);
     }
 
     /**
@@ -353,11 +370,14 @@ public class MineView implements Renderable {
         drawLabel(NumberFormatter.format(floor.getStoredAmount()), getCrateX(), boxY - ROOM_MARGIN);
 
         for (Pulpie pulpie : floor.getPulpies()) {
-            drawPulpie(pulpie, y);
+            drawPulpie(pulpie, fruit, y);
         }
     }
 
-    private void drawPulpie(Pulpie pulpie, double floorScreenY) {
+    /**
+     * Draws the Pulpie with the animation of its state, or as a square if the sheet does not exist yet.
+     */
+    private void drawPulpie(Pulpie pulpie, Fruit fruit, double floorScreenY) {
         double start = getManagerX() + MANAGER_WIDTH + MANAGER_GAP;
         double end = getExtractorX() - PULPIE_SIZE;
         PulpieState state = pulpie.getState();
@@ -369,12 +389,43 @@ public class MineView implements Renderable {
         } else if (state instanceof CarryingState) {
             x = end - (end - start) * pulpie.getProgress();
         }
+        Animation animation = state == null ? Animation.IDLE : ANIMATIONS.get(state.getClass());
+        if (animation != null && pulpieSprites.has(fruit, animation)) {
+            int frame = getFrame(animation, pulpieSprites.getFrameCount(fruit, animation), pulpie, end - start);
+            pulpieSprites.draw(gc, fruit, animation, frame, x + PULPIE_SIZE / 2, getGroundY(floorScreenY),
+                    isFacingLeft(animation));
+            return;
+        }
         Color color = Color.WHITE;
         if (pulpie.getBag() != null) {
             color = color.darker();
         }
         gc.setFill(color);
         gc.fillRect(x, getGroundY(floorScreenY) - PULPIE_SIZE, PULPIE_SIZE, PULPIE_SIZE);
+    }
+
+    /**
+     * Walk and carry loop with the distance walked, fill and deposit play once over their state,
+     * and idle loops with the clock.
+     *
+     * @param path distance between the start of the trip and the extractor, in pixels
+     */
+    private static int getFrame(Animation animation, int frameCount, Pulpie pulpie, double path) {
+        return switch (animation) {
+            case WALK, CARRY -> (int) (path * pulpie.getProgress() / WALK_STEP) % frameCount;
+            case FILL, DEPOSIT -> Math.min(frameCount - 1, (int) (pulpie.getProgress() * frameCount));
+            case IDLE -> (int) (System.nanoTime() / IDLE_FRAME_NANOS % frameCount);
+        };
+    }
+
+    /**
+     * The sprites face right. A Pulpie faces where it goes: the extractor when it walks there, fills
+     * or waits for its next trip, and the crate when it carries the smoothie back or deposits it.
+     */
+    private boolean isFacingLeft(Animation animation) {
+        boolean towardCrate = animation == Animation.CARRY || animation == Animation.DEPOSIT;
+        boolean crateOnLeft = getCrateX() < getExtractorX();
+        return towardCrate == crateOnLeft;
     }
 
     /**
