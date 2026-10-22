@@ -50,6 +50,11 @@ public class Elevator extends Station {
     }
 
     @Override
+    public int getMaxLevel() {
+        return config.getMaxLevel();
+    }
+
+    @Override
     public double getUpgradeCost() {
         return getBaseUpgradeCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
     }
@@ -94,8 +99,8 @@ public class Elevator extends Station {
     protected StationStats baseStats() {
         return new StationStats(
                 config.getElevatorMoveSpeed() * (1 + config.getElevatorSpeedGrowth() * (getLevel() - 1)),
-                config.getElevatorBaseCapacity() * getLevel()
-                        * milestoneBonus(config.getMilestoneInterval(), config.getTransportMilestoneMultiplier())
+                config.getElevatorBaseCapacity() * levelBonus(config.getStatGrowth(),
+                        config.getMilestoneLevels(), config.getElevatorMilestoneMultiplier())
         );
     }
 

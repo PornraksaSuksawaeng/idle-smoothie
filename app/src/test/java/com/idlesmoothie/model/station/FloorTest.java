@@ -48,7 +48,7 @@ class FloorTest {
 
     /** Raises a level 1 floor to the first level that unlocks a second Pulpie. */
     private void upgradeToSecondPulpie(Floor floor) {
-        floor.upgrade(config.getLevelsPerPulpie());
+        floor.upgrade(config.getMilestoneLevels().get(0) - 1);
     }
 
     @Test
@@ -92,15 +92,15 @@ class FloorTest {
         StationStats stats = new Floor(0, Fruit.STRAWBERRY, config).getStats();
 
         assertEquals(config.getFloorTripSpeed(), stats.getSpeed(), DELTA);
-        assertEquals(config.getFloorBaseCarry(), stats.getCapacity(), DELTA);
+        assertEquals(config.getFloorBaseCarry(0), stats.getCapacity(), DELTA);
     }
 
     @Test
     void deeperFloorCarriesMore() {
-        double first = new Floor(0, Fruit.MANGO, config).getStats().getCapacity();
         double fifth = new Floor(4, Fruit.MANGO, config).getStats().getCapacity();
 
-        assertEquals(Math.pow(config.getFloorDepthProductionGrowth(), 4) * first, fifth, DELTA);
+        assertEquals(config.getFloorBaseCarry(4), fifth, DELTA);
+        assertTrue(fifth > new Floor(3, Fruit.MANGO, config).getStats().getCapacity());
     }
 
     @Test
@@ -109,22 +109,22 @@ class FloorTest {
 
         floor.upgrade(4);
 
-        assertEquals(5 * config.getFloorBaseCarry(), floor.getStats().getCapacity(), DELTA);
+        assertEquals(Math.pow(config.getStatGrowth(), 4) * config.getFloorBaseCarry(0),
+                floor.getStats().getCapacity(), DELTA);
     }
 
     @Test
     void upgradeCostStartsAtBaseCost() {
         Floor floor = new Floor(0, Fruit.STRAWBERRY, config);
 
-        assertEquals(config.getFloorBaseCost(), floor.getUpgradeCost(), DELTA);
+        assertEquals(config.getFloorPrice(0) * config.getFloorUpgradeCostRatio(), floor.getUpgradeCost(), DELTA);
     }
 
     @Test
     void deeperFloorCostsMore() {
         Floor floor = new Floor(2, Fruit.STRAWBERRY, config);
 
-        assertEquals(Math.pow(config.getFloorDepthCostGrowth(), 2) * config.getFloorBaseCost(),
-                floor.getUpgradeCost(), DELTA);
+        assertEquals(config.getFloorPrice(2) * config.getFloorUpgradeCostRatio(), floor.getUpgradeCost(), DELTA);
     }
 
     @Test
@@ -138,23 +138,27 @@ class FloorTest {
     }
 
     @Test
-    void floorGainsAPulpieAtEachPulpieLevel() {
+    void floorGainsAPulpieAtEachMilestone() {
         Floor floor = new Floor(0, Fruit.STRAWBERRY, config);
+        int count = 1;
+        for (int milestone : config.getMilestoneLevels()) {
+            floor.upgrade(milestone - 1 - floor.getLevel());
+            assertEquals(count, floor.getPulpieCount());
 
-        floor.upgrade(config.getLevelsPerPulpie() - 1);
-        assertEquals(1, floor.getPulpieCount());
-
-        floor.upgrade(1);
-        assertEquals(Math.min(2, config.getMaxPulpies()), floor.getPulpieCount());
+            floor.upgrade(1);
+            count = Math.min(count + 1, config.getMaxPulpies());
+            assertEquals(count, floor.getPulpieCount());
+        }
     }
 
     @Test
-    void pulpieCountIsCapped() {
+    void levelStopsAtMaxLevel() {
         Floor floor = new Floor(0, Fruit.STRAWBERRY, config);
 
-        floor.upgrade(config.getLevelsPerPulpie() * (config.getMaxPulpies() + 5));
+        floor.upgrade(config.getMaxLevel() - 1);
 
-        assertEquals(config.getMaxPulpies(), floor.getPulpieCount());
+        assertEquals(0, floor.getLevelsLeft());
+        assertThrows(IllegalArgumentException.class, () -> floor.upgrade(1));
     }
 
     @Test
@@ -308,20 +312,19 @@ class FloorTest {
 
         station.upgrade(20);
 
-        assertEquals(config.getFloorBaseCost() * Math.pow(config.getFloorDepthCostGrowth(), 2), base, DELTA);
+        assertEquals(config.getFloorPrice(2) * config.getFloorUpgradeCostRatio(), base, DELTA);
         assertEquals(base, station.getBaseUpgradeCost(), DELTA);
     }
 
     @Test
     void milestoneMultipliesCapacity() {
+        int milestone = config.getMilestoneLevels().get(0);
         Floor before = new Floor(0, Fruit.STRAWBERRY, config);
-        before.upgrade(config.getMilestoneInterval() - 2);
+        before.upgrade(milestone - 2);
         Floor after = new Floor(0, Fruit.STRAWBERRY, config);
-        after.upgrade(config.getMilestoneInterval() - 1);
+        after.upgrade(milestone - 1);
 
-        double perLevelBefore = before.getStats().getCapacity() / before.getLevel();
-        double perLevelAfter = after.getStats().getCapacity() / after.getLevel();
-
-        assertEquals(config.getMilestoneMultiplier() * perLevelBefore, perLevelAfter, DELTA);
+        double expected = before.getStats().getCapacity() * config.getStatGrowth() * config.getMilestoneMultiplier();
+        assertEquals(expected, after.getStats().getCapacity(), DELTA * expected);
     }
 }

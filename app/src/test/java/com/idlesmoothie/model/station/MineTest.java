@@ -110,11 +110,12 @@ class MineTest {
     @Test
     void nextFloorCostGrowsWithDepth() {
         Mine mine = newMine();
-        assertEquals(config.getNewFloorBaseCost(), mine.getNextFloorCost(), DELTA);
+        assertEquals(config.getFloorPrice(1), mine.getNextFloorCost(), DELTA);
 
         mine.unlockNextFloor();
 
-        assertEquals(config.getNewFloorBaseCost() * config.getNewFloorCostGrowth(), mine.getNextFloorCost(), DELTA);
+        assertEquals(config.getFloorPrice(2), mine.getNextFloorCost(), DELTA);
+        assertTrue(config.getFloorPrice(2) > config.getFloorPrice(1));
     }
 
     @Test
@@ -123,7 +124,7 @@ class MineTest {
         int barrier = config.getFloorsPerFruit();
         growTo(mine, barrier);
 
-        double normal = config.getNewFloorBaseCost() * Math.pow(config.getNewFloorCostGrowth(), barrier - 1);
+        double normal = config.getFloorPrice(barrier);
 
         assertEquals(normal * config.getBarrierCostMultiplier(), mine.getNextFloorCost(), DELTA);
     }
@@ -196,10 +197,11 @@ class MineTest {
         Mine mine = newMine();
         assertEquals(StationType.FLOOR, mine.findBottleneck());
 
-        mine.getFloors().get(0).upgrade(1000);
+        Floor floor = mine.getFloors().get(0);
+        floor.upgrade(floor.getLevelsLeft());
         assertTrue(mine.findBottleneck() != StationType.FLOOR);
 
-        mine.getElevator().upgrade(1000);
+        mine.getElevator().upgrade(mine.getElevator().getLevelsLeft());
         assertEquals(StationType.SELL, mine.findBottleneck());
     }
 

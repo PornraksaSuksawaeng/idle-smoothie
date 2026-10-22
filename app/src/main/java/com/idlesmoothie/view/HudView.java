@@ -43,7 +43,7 @@ public class HudView implements Renderable {
      */
     @Override
     public void render() {
-        coinsLabel.setText(String.format("%.0f coins", game.getCoins()));
+        coinsLabel.setText(NumberFormatter.format(game.getCoins()) + " coins");
         bottleneckLabel.setText("Bottleneck: " + game.getBottleneck());
     }
 

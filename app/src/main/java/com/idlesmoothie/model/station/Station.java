@@ -2,6 +2,7 @@ package com.idlesmoothie.model.station;
 
 import com.idlesmoothie.model.economy.Upgradable;
 import com.idlesmoothie.model.manager.Manager;
+import java.util.List;
 
 /**
  * Base class of every station of the mine: floors, elevator and sell station.
@@ -45,6 +46,23 @@ public abstract class Station implements Upgradable {
      * @return the base price in coins
      */
     public abstract double getBaseUpgradeCost();
+
+    /**
+     * Returns the highest level the station can reach.
+     *
+     * @return the maximum level
+     */
+    public abstract int getMaxLevel();
+
+    /**
+     * Returns how many levels can still be bought.
+     *
+     * @return the number of levels left, 0 at the maximum level
+     */
+    @Override
+    public int getLevelsLeft() {
+        return getMaxLevel() - level;
+    }
 
     /**
      * Returns the raw stats for the current level, before any bonus.
@@ -164,12 +182,15 @@ public abstract class Station implements Upgradable {
      * Raises the level of the station.
      *
      * @param levels number of levels to add
-     * @throws IllegalArgumentException if {@code levels} is not positive
+     * @throws IllegalArgumentException if {@code levels} is not positive or goes past the maximum level
      */
     @Override
     public void upgrade(int levels) {
         if (levels <= 0) {
             throw new IllegalArgumentException("Levels must be positive");
+        }
+        if (levels > getLevelsLeft()) {
+            throw new IllegalArgumentException("Cannot go past level " + getMaxLevel());
         }
         level += levels;
     }
@@ -217,15 +238,32 @@ public abstract class Station implements Upgradable {
     }
 
     /**
-     * Returns the capacity multiplier the station's milestones give: each milestone multiplies it again.
-     * With an interval of 25 and a multiplier of 2, levels 25, 50, 75... each double the capacity.
+     * Returns how many milestone levels the station has reached.
      *
-     * @param interval   the number of levels between two milestones
-     * @param multiplier the factor one milestone applies
-     * @return the total milestone multiplier for the current level
+     * @param milestones the milestone levels
+     * @return the number of milestones at or below the current level
      */
-    protected final double milestoneBonus(int interval, double multiplier) {
-        return Math.pow(multiplier, getLevel() / interval);
+    protected final int milestonesReached(List<Integer> milestones) {
+        int count = 0;
+        for (int milestone : milestones) {
+            if (level >= milestone) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Returns how many times its level 1 capacity the station has: it grows at each level,
+     * and each milestone reached multiplies it again.
+     *
+     * @param growth     the factor gained at each level
+     * @param milestones the milestone levels
+     * @param multiplier the factor one milestone applies
+     * @return the total capacity multiplier for the current level
+     */
+    protected final double levelBonus(double growth, List<Integer> milestones, double multiplier) {
+        return Math.pow(growth, level - 1) * Math.pow(multiplier, milestonesReached(milestones));
     }
 
     /**

@@ -12,7 +12,7 @@ import com.idlesmoothie.model.resource.Storage;
 
 /**
  * One floor of the mine, where Pulpies carry smoothie of the floor fruit into a crate.
- * Deeper floors and higher levels produce more; every few levels the floor gains a Pulpie.
+ * Deeper floors and higher levels produce more; each milestone level adds a Pulpie.
  * The crate has no limit: the elevator is the one that may not keep up.
  */
 public class Floor extends Station {
@@ -97,7 +97,7 @@ public class Floor extends Station {
     }
 
     private int targetPulpieCount() {
-        int count = 1 + (getLevel() - 1) / config.getLevelsPerPulpie();
+        int count = 1 + milestonesReached(config.getMilestoneLevels());
         return Math.min(count, config.getMaxPulpies());
     }
 
@@ -114,14 +114,22 @@ public class Floor extends Station {
     protected StationStats baseStats() {
         return new StationStats(
                 config.getFloorTripSpeed(),
-                config.getFloorBaseCarry() * Math.pow(config.getFloorDepthProductionGrowth(), index) * getLevel()
-                        * milestoneBonus(config.getMilestoneInterval(), config.getMilestoneMultiplier())
+                config.getFloorBaseCarry(index) * levelBonus(config.getStatGrowth(),
+                        config.getMilestoneLevels(), config.getMilestoneMultiplier())
         );
     }
 
+    /**
+     * The first upgrade costs a bit more than the floor itself.
+     */
     @Override
     public double getBaseUpgradeCost() {
-        return config.getFloorBaseCost() * Math.pow(config.getFloorDepthCostGrowth(), index);
+        return config.getFloorPrice(index) * config.getFloorUpgradeCostRatio();
+    }
+
+    @Override
+    public int getMaxLevel() {
+        return config.getMaxLevel();
     }
 
     @Override

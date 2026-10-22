@@ -48,6 +48,11 @@ class StationTest {
         }
 
         @Override
+        public int getMaxLevel() {
+            return 500;
+        }
+
+        @Override
         protected StationStats baseStats() {
             return new StationStats(speed, capacity);
         }

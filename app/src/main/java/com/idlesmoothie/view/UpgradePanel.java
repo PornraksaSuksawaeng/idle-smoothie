@@ -97,9 +97,11 @@ public class UpgradePanel implements Renderable {
         StationStats stats = selected.getStats();
         titleLabel.setText(nameOf(selected));
         levelLabel.setText("Level " + selected.getLevel());
-        statsLabel.setText(String.format("Speed: %.2f   Capacity: %.1f%nThroughput: %.1f / s",
-                stats.getSpeed(), stats.getCapacity(), selected.getThroughput()));
-        upgradeButton.setText(String.format("Upgrade %s: %.0f coins", mode.name(), game.getUpgradeCost(selected, mode)));
+        statsLabel.setText(String.format("Speed: %.2f   Capacity: %s%nThroughput: %s / s",
+                stats.getSpeed(), NumberFormatter.format(stats.getCapacity()),
+                NumberFormatter.format(selected.getThroughput())));
+        upgradeButton.setText("Upgrade " + mode.name() + ": "
+                + NumberFormatter.format(game.getUpgradeCost(selected, mode)) + " coins");
         upgradeButton.setDisable(!game.canUpgrade(selected, mode));
         for (var node : modeButtons.getChildren()) {
             node.setStyle(node.getUserData() == mode ? SELECTED_MODE_STYLE : "");
