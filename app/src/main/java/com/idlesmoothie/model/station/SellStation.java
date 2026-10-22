@@ -24,6 +24,8 @@ public class SellStation extends Station {
     private final Wallet wallet;
     private final CycleTimer timer = new CycleTimer();
     private final List<SmoothieBatch> onSale = new ArrayList<>();
+    private int salesMade;
+    private double lastSaleCoins;
 
     /**
      * Creates an idle sell station at level 1, with nothing on sale.
@@ -112,6 +114,23 @@ public class SellStation extends Station {
     }
 
     /**
+     * Returns how many sales were paid since the station was built. The view compares it between frames
+     * to notice each new sale.
+     *
+     * @return the number of sales made
+     */
+    public int getSalesMade() {
+        return salesMade;
+    }
+
+    /**
+     * @return the coins paid by the last sale, 0 before the first one
+     */
+    public double getLastSaleCoins() {
+        return lastSaleCoins;
+    }
+
+    /**
      * @return the progress of the sale in progress, from 0 to 1
      */
     public double getProgress() {
@@ -160,9 +179,13 @@ public class SellStation extends Station {
     }
 
     private void sell() {
+        double earned = 0;
         for (SmoothieBatch batch : onSale) {
-            wallet.addCoins(priceCalculator.priceOf(batch));
+            earned += priceCalculator.priceOf(batch);
         }
+        wallet.addCoins(earned);
+        lastSaleCoins = earned;
+        salesMade++;
         onSale.clear();
         timer.reset();
     }

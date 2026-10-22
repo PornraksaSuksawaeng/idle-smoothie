@@ -17,7 +17,6 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.effect.ColorAdjust;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
@@ -31,9 +30,6 @@ public class IdleSmoothieApp extends Application {
 
     private static final double HUD_MARGIN = 12;
     private static final double SETTINGS_ICON_SIZE = 30;
-    // Turns the gear white, like the texts of the HUD: no color, much brighter.
-    private static final double GEAR_SATURATION = -1;
-    private static final double GEAR_BRIGHTNESS = 0.75;
     private static final double HOVER_SCALE = 1.1;
     private static final Duration HOVER_DURATION = Duration.millis(150);
 
@@ -146,7 +142,6 @@ public class IdleSmoothieApp extends Application {
         icon.setFitWidth(SETTINGS_ICON_SIZE);
         icon.setFitHeight(SETTINGS_ICON_SIZE);
         icon.setSmooth(true);
-        icon.setEffect(new ColorAdjust(0, GEAR_SATURATION, GEAR_BRIGHTNESS, 0));
         return icon;
     }
 }
