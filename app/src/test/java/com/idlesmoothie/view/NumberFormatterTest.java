@@ -34,4 +34,13 @@ class NumberFormatterTest {
         assertEquals("1.00K", NumberFormatter.format(999.7));
         assertEquals("1.00M", NumberFormatter.format(999_999));
     }
+
+    @Test
+    void decimalsKeepTwoDigitsWithoutTrailingZeros() {
+        assertEquals("2.16", NumberFormatter.formatDecimal(2.16));
+        assertEquals("1.5", NumberFormatter.formatDecimal(1.5));
+        assertEquals("3", NumberFormatter.formatDecimal(3));
+        assertEquals("0.25", NumberFormatter.formatDecimal(0.25));
+        assertEquals("1.50K", NumberFormatter.formatDecimal(1_500));
+    }
 }
