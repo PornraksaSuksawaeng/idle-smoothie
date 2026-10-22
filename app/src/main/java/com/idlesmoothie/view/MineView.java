@@ -142,6 +142,24 @@ public class MineView implements Renderable {
     private static final double BAR_CENTER_X = 0.69;
     // How far the feet of the bar go below the top of the ground, so they stand in the grass instead of above it.
     private static final double BAR_SINK = 5;
+    // The sloped walkway between the headframe and the bar. It keeps its proportions: its deck starts on the
+    // headframe, at this fraction of its height (level with its "Lv" button), and goes this far behind
+    // the headframe and the bar, so there is no gap. Only its posts are made longer, so their feet stand
+    // in the grass like the bar.
+    private static final double BRIDGE_START_Y = 0.30;
+    private static final double BRIDGE_OVERLAP = 4;
+    // In the walkway image, in image pixels: the left and right ends of the deck, the straight part of the posts
+    // that is stretched down, the iron foot under it, and the left and right sides of each post foot.
+    private static final double BRIDGE_IMAGE_LEFT = 9;
+    private static final double BRIDGE_IMAGE_RIGHT = 440;
+    private static final double BRIDGE_IMAGE_TRUNK_TOP = 150;
+    private static final double BRIDGE_IMAGE_FOOT_TOP = 195;
+    private static final double BRIDGE_IMAGE_FOOT_BOTTOM = 211;
+    private static final double[][] BRIDGE_IMAGE_POSTS = {{44, 68}, {206, 230}, {368, 392}};
+    // Visible right edge of the headframe where the walkway starts, and visible left edge of the bar
+    // (the post of its counter) where it ends, as fractions of their image widths.
+    private static final double HEADFRAME_EDGE_X = 0.784;
+    private static final double BAR_SIDE_X = 0.105;
     // The customers waiting at the right of the bar: smaller Pulpies of other fruits, in their idle animation,
     // facing the bar. The last one is cut by the window edge, as if the line went on.
     private static final double CUSTOMER_SIZE = 64;
@@ -221,6 +239,7 @@ public class MineView implements Renderable {
     private final Image smoothieIcon;
     private final Image emptyCrateImage;
     private final Image barImage;
+    private final Image bridgeImage;
     // The "+coins" texts rising from the bar, one per sale, oldest first.
     private final List<SaleFloat> saleFloats = new ArrayList<>();
     private int salesSeen;
@@ -285,6 +304,7 @@ public class MineView implements Renderable {
         this.smoothieIcon = loadImage("/images/ui/smoothie.png");
         this.emptyCrateImage = loadImage("/images/mine/crate_empty.png");
         this.barImage = loadImage("/images/mine/bar.png");
+        this.bridgeImage = loadImage("/images/mine/bridge.png");
         this.fullCrateImages = loadFruitImages("crate_");
         this.pulpieSprites = new PulpieSprites(PULPIE_SPRITE_SIZE);
         this.customerSprites = new PulpieSprites(CUSTOMER_SIZE);
@@ -323,6 +343,7 @@ public class MineView implements Renderable {
             }
         }
         drawShaft();
+        drawBridge();
         drawHeadframe();
         drawElevator();
         drawSurfaceStock();
@@ -652,6 +673,39 @@ public class MineView implements Renderable {
         double x = (SHAFT_WIDTH - width) / 2;
         double y = SURFACE_HEIGHT - height * HEADFRAME_PLATFORM_Y - scrollY;
         gc.drawImage(headframeImage, x, y, width, height);
+    }
+
+    /**
+     * Draws the walkway from the top of the headframe down to the bar, on its posts. It is drawn before both,
+     * so its ends hide behind them. Nothing is drawn if the walkway, headframe or bar image is missing.
+     */
+    private void drawBridge() {
+        if (bridgeImage == null || headframeImage == null || barImage == null) {
+            return;
+        }
+        Box bar = getBar();
+        double headframeX = (SHAFT_WIDTH - headframeWidth()) / 2;
+        double deckLeft = headframeX + headframeWidth() * HEADFRAME_EDGE_X - BRIDGE_OVERLAP;
+        double deckRight = bar.x() + bar.width() * BAR_SIDE_X + BRIDGE_OVERLAP;
+        double top = SURFACE_HEIGHT - headframeHeight() * (HEADFRAME_PLATFORM_Y - BRIDGE_START_Y);
+        double scale = (deckRight - deckLeft) / (BRIDGE_IMAGE_RIGHT - BRIDGE_IMAGE_LEFT);
+        double imageX = deckLeft - BRIDGE_IMAGE_LEFT * scale;
+        double y = top - scrollY;
+        // The deck, its rail and the top of the posts, down to where the iron feet start.
+        gc.drawImage(bridgeImage, 0, 0, bridgeImage.getWidth(), BRIDGE_IMAGE_FOOT_TOP,
+                imageX, y, bridgeImage.getWidth() * scale, BRIDGE_IMAGE_FOOT_TOP * scale);
+        // Each post goes on down to the grass with its straight part stretched, then its foot.
+        double footHeight = (BRIDGE_IMAGE_FOOT_BOTTOM - BRIDGE_IMAGE_FOOT_TOP) * scale;
+        double footY = SURFACE_HEIGHT + BAR_SINK - footHeight - scrollY;
+        double trunkY = y + BRIDGE_IMAGE_FOOT_TOP * scale;
+        for (double[] post : BRIDGE_IMAGE_POSTS) {
+            double postX = imageX + post[0] * scale;
+            double postWidth = (post[1] - post[0]) * scale;
+            gc.drawImage(bridgeImage, post[0], BRIDGE_IMAGE_TRUNK_TOP, post[1] - post[0],
+                    BRIDGE_IMAGE_FOOT_TOP - BRIDGE_IMAGE_TRUNK_TOP, postX, trunkY, postWidth, footY - trunkY);
+            gc.drawImage(bridgeImage, post[0], BRIDGE_IMAGE_FOOT_TOP, post[1] - post[0],
+                    BRIDGE_IMAGE_FOOT_BOTTOM - BRIDGE_IMAGE_FOOT_TOP, postX, footY, postWidth, footHeight);
+        }
     }
 
     /**
