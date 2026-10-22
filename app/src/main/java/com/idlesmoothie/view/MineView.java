@@ -1,5 +1,9 @@
 package com.idlesmoothie.view;
 
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.idlesmoothie.core.Game;
 import com.idlesmoothie.model.creature.CarryingState;
 import com.idlesmoothie.model.creature.FillingState;
@@ -13,9 +17,7 @@ import com.idlesmoothie.model.station.Floor;
 import com.idlesmoothie.model.station.Mine;
 import com.idlesmoothie.model.station.SellStation;
 import com.idlesmoothie.model.station.Station;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
+
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
@@ -82,7 +84,7 @@ public class MineView implements Renderable {
     private final Image groundImage;
     private final Image barrierImage;
     private final Game game;
-    private final Mine mine;
+    private Mine mine;
     private final UpgradeController controller;
     private final UpgradePanel upgradePanel;
     private final ShopView shopView;
@@ -122,6 +124,10 @@ public class MineView implements Renderable {
      */
     @Override
     public void render() {
+        if (mine != game.getMine()) {
+            mine = game.getMine();
+            scrollY = 0;
+        }
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         drawSurface();
         drawSoilZones();

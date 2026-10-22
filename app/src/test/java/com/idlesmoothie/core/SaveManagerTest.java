@@ -84,4 +84,23 @@ class SaveManagerTest {
 
         assertFalse(Files.exists(folder.resolve("save.json.tmp")));
     }
+
+    @Test
+    void deleteRemovesTheSave() throws IOException {
+        SaveManager saves = new SaveManager(folder.resolve("save.json"));
+        saves.save(new GameSnapshot(1, List.of(1), 1, 1, List.of()));
+
+        saves.delete();
+
+        assertTrue(saves.load().isEmpty());
+    }
+
+    @Test
+    void deleteWithoutASaveDoesNothing() throws IOException {
+        SaveManager saves = new SaveManager(folder.resolve("save.json"));
+
+        saves.delete();
+
+        assertTrue(saves.load().isEmpty());
+    }
 }

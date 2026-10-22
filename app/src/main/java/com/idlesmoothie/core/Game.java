@@ -29,10 +29,12 @@ import com.idlesmoothie.model.station.StationType;
 public class Game {
 
     private final BalanceConfig config;
+    private final PriceCalculator priceCalculator;
     private final Wallet wallet;
-    private final Mine mine;
+    private Mine mine;
     private final UpgradeService upgradeService;
     private final ManagerFactory managerFactory;
+    
 
     /**
      * Starts a new game with the default balance values.
@@ -81,6 +83,7 @@ public class Game {
         this.mine = new Mine(priceCalculator, wallet, config);
         this.upgradeService = new UpgradeService(wallet, config.getUpgradeCostGrowth());
         this.managerFactory = managerFactory;
+        this.priceCalculator = priceCalculator;
     }
 
     /**
@@ -363,5 +366,16 @@ public class Game {
                 throw new IllegalArgumentException("A saved manager works on a floor that does not exist");
             }
         }
+    }
+
+    /**
+     * Wipes the progress and starts over: the coins go back to 0, the mine to a single floor,
+     * and every station to level 1 without a manager.
+     * The view keeps the same {@code Game}, but must read {@link #getMine()} again, which is a new mine.
+     * The save file is not touched: call {@link SaveManager#delete()} as well, or the next launch loads it back.
+     */
+    public void reset() {
+        wallet.resetCoins();
+        mine = new Mine(priceCalculator, wallet, config);
     }
 }

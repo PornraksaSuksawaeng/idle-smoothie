@@ -10,6 +10,7 @@ import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
@@ -46,11 +47,17 @@ public class IdleSmoothieApp extends Application {
         ShopView shopView = new ShopView(game, controller);
         MineView mineView = new MineView(540, 960, game, controller, upgradePanel, shopView);
         HudView hudView = new HudView(game);
+        SettingsView settingsView = new SettingsView(this::resetProgress);
+        Button settingsButton = new Button("⚙");
+        settingsButton.setStyle("-fx-font-size: 18px;");
+        settingsButton.setOnAction(e -> settingsView.show());
 
-        StackPane root = new StackPane(mineView.getCanvas(), hudView.getRoot(), upgradePanel.getRoot(),
-                shopView.getRoot());
+        StackPane root = new StackPane(mineView.getCanvas(), hudView.getRoot(), settingsButton,
+                upgradePanel.getRoot(), shopView.getRoot(), settingsView.getRoot());
         StackPane.setAlignment(hudView.getRoot(), Pos.TOP_CENTER);
         StackPane.setMargin(hudView.getRoot(), new Insets(HUD_MARGIN));
+        StackPane.setAlignment(settingsButton, Pos.TOP_RIGHT);
+        StackPane.setMargin(settingsButton, new Insets(HUD_MARGIN));
         stage.setTitle("Idle Smoothie");
         stage.setScene(new Scene(root, 540, 960));
         stage.setResizable(false);
@@ -72,6 +79,18 @@ public class IdleSmoothieApp extends Application {
             saves.save(game.createSnapshot());
         } catch (IOException e) {
             System.err.println("Could not save the game: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Starts a new game and deletes the save, so the old progress does not come back at the next launch.
+     */
+    private void resetProgress() {
+        game.reset();
+        try {
+            saves.delete();
+        } catch (IOException e) {
+            System.err.println("Could not delete the save: " + e.getMessage());
         }
     }
 }
