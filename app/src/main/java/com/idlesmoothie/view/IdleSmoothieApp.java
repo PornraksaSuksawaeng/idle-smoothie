@@ -1,18 +1,27 @@
 package com.idlesmoothie.view;
 
-import com.idlesmoothie.core.Game;
-import com.idlesmoothie.core.SaveManager;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+
+import com.idlesmoothie.core.Game;
+import com.idlesmoothie.core.SaveManager;
+
+import javafx.animation.ScaleTransition;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 /**
  * JavaFX application: builds the main window, loads the save at launch and saves on exit.
@@ -20,6 +29,9 @@ import javafx.stage.Stage;
 public class IdleSmoothieApp extends Application {
 
     private static final double HUD_MARGIN = 12;
+    private static final double SETTINGS_ICON_SIZE = 44;
+    private static final double HOVER_SCALE = 1.1;
+    private static final Duration HOVER_DURATION = Duration.millis(150);
 
     private SaveManager saves;
     private Game game;
@@ -48,9 +60,7 @@ public class IdleSmoothieApp extends Application {
         MineView mineView = new MineView(540, 960, game, controller, upgradePanel, shopView);
         HudView hudView = new HudView(game);
         SettingsView settingsView = new SettingsView(this::resetProgress);
-        Button settingsButton = new Button("⚙");
-        settingsButton.setStyle("-fx-font-size: 18px;");
-        settingsButton.setOnAction(e -> settingsView.show());
+        Button settingsButton = createSettingsButton(settingsView);
 
         StackPane root = new StackPane(mineView.getCanvas(), hudView.getRoot(), settingsButton,
                 upgradePanel.getRoot(), shopView.getRoot(), settingsView.getRoot());
@@ -92,5 +102,43 @@ public class IdleSmoothieApp extends Application {
         } catch (IOException e) {
             System.err.println("Could not delete the save: " + e.getMessage());
         }
+    }
+
+    /**
+     * Creates the gear button that opens the settings, which smoothly grows a little under the mouse.
+     */
+    private Button createSettingsButton(SettingsView settingsView) {
+        Button button = new Button();
+        button.setGraphic(settingsIcon());
+        button.setStyle("-fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand;");
+        ScaleTransition zoom = new ScaleTransition(HOVER_DURATION, button);
+        button.setOnMouseEntered(e -> zoomTo(zoom, HOVER_SCALE));
+        button.setOnMouseExited(e -> zoomTo(zoom, 1));
+        button.setOnAction(e -> settingsView.show());
+        return button;
+    }
+
+    /**
+     * Animates the node from its current size to the given scale, even if the previous animation was not finished.
+     */
+    private static void zoomTo(ScaleTransition zoom, double scale) {
+        zoom.stop();
+        zoom.setToX(scale);
+        zoom.setToY(scale);
+        zoom.play();
+    }
+    /**
+     * @return the gear icon, or a text if the image is missing
+     */
+    private Node settingsIcon() {
+        InputStream stream = getClass().getResourceAsStream("/images/ui/settings.png");
+        if (stream == null) {
+            return new Label("Settings");
+        }
+        ImageView icon = new ImageView(new Image(stream));
+        icon.setFitWidth(SETTINGS_ICON_SIZE);
+        icon.setFitHeight(SETTINGS_ICON_SIZE);
+        icon.setSmooth(true);
+        return icon;
     }
 }
