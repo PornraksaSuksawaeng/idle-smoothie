@@ -4,47 +4,54 @@ import com.idlesmoothie.core.Game;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Label;
-import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
 
 /**
- * Heads-up display at the top of the screen: the player's coins and the station that limits the income.
+ * Heads-up display at the top of the screen: a wooden pill with the player's coins,
+ * and next to it a grey pill with a lightning bolt and what the mine earns per second.
  * It does not scroll with the mine and lets clicks go through to the mine below.
+ * The look comes from the {@code game-ui.css} stylesheet added to the scene.
  */
 public class HudView implements Renderable {
 
-    private static final double SPACING = 4;
-    private static final String STYLE = "-fx-background-color: rgba(0, 0, 0, 0.6);"
-            + " -fx-background-radius: 8; -fx-padding: 8 16;";
-    private static final String TEXT_STYLE = "-fx-text-fill: white; -fx-font-size: 14px;";
+    private static final double SPACING = 8;
+    private static final double COIN_SIZE = 32;
+    private static final double SPEED_SIZE = 30;
+    private static final Image SPEED_IMAGE = new Image(HudView.class.getResourceAsStream("/images/ui/speed.png"));
 
     private final Game game;
     private final Label coinsLabel = new Label();
-    private final Label bottleneckLabel = new Label();
-    private final VBox root;
+    private final Label rateLabel = new Label();
+    private final HBox root;
 
     /**
      * Creates the HUD.
      *
-     * @param game the game whose coins and bottleneck are displayed
+     * @param game the game whose coins and income are displayed
      */
     public HudView(Game game) {
         this.game = game;
-        coinsLabel.setStyle(TEXT_STYLE + " -fx-font-size: 20px; -fx-font-weight: bold;");
-        bottleneckLabel.setStyle(TEXT_STYLE);
-        root = new VBox(SPACING, coinsLabel, bottleneckLabel);
+
+        coinsLabel.getStyleClass().add("hud-text");
+        HBox coins = pill("hud-coins", icon(CoinIcon.IMAGE, COIN_SIZE), coinsLabel);
+        rateLabel.getStyleClass().add("hud-text");
+        HBox rate = pill("hud-rate", icon(SPEED_IMAGE, SPEED_SIZE), rateLabel);
+
+        root = new HBox(SPACING, coins, rate);
         root.setAlignment(Pos.CENTER);
-        root.setStyle(STYLE);
-        root.setMaxSize(VBox.USE_PREF_SIZE, VBox.USE_PREF_SIZE);
+        root.setMaxSize(HBox.USE_PREF_SIZE, HBox.USE_PREF_SIZE);
         root.setMouseTransparent(true);
     }
 
     /**
-     * Updates the labels from the game.
+     * Updates the coins and the income per second from the game.
      */
     @Override
     public void render() {
-        coinsLabel.setText(NumberFormatter.format(game.getCoins()) + " coins");
-        bottleneckLabel.setText("Bottleneck: " + game.getBottleneck());
+        coinsLabel.setText(NumberFormatter.format(game.getCoins()));
+        rateLabel.setText("+" + NumberFormatter.format(game.getIncomePerSecond()) + " /s");
     }
 
     /**
@@ -52,5 +59,22 @@ public class HudView implements Renderable {
      */
     public Parent getRoot() {
         return root;
+    }
+
+    /** An icon on the left of a pill, then its text. */
+    private static HBox pill(String styleClass, ImageView icon, Label text) {
+        HBox pill = new HBox(SPACING, icon, text);
+        pill.getStyleClass().addAll("hud-pill", styleClass);
+        pill.setAlignment(Pos.CENTER_LEFT);
+        return pill;
+    }
+
+    /** A smoothly scaled square icon. */
+    private static ImageView icon(Image image, double size) {
+        ImageView icon = new ImageView(image);
+        icon.setFitWidth(size);
+        icon.setFitHeight(size);
+        icon.setSmooth(true);
+        return icon;
     }
 }

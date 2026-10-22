@@ -96,13 +96,34 @@ public class Floor extends Station {
         return pulpies.size();
     }
 
-    private int targetPulpieCount() {
-        int count = 1 + milestonesReached(config.getMilestoneLevels());
-        return Math.min(count, config.getMaxPulpies());
+    /**
+     * Returns how many Pulpies the floor would have after buying more levels. The floor does not change.
+     *
+     * @param extraLevels the levels that would be bought, 0 for the current count
+     * @return the number of Pulpies at that level
+     * @throws IllegalArgumentException if {@code extraLevels} is negative or goes past the maximum level
+     */
+    public int previewPulpieCount(int extraLevels) {
+        return pulpieCountAt(levelAfter(extraLevels));
+    }
+
+    @Override
+    public List<Integer> getMilestoneLevels() {
+        return config.getMilestoneLevels();
+    }
+
+    @Override
+    public double getMilestoneMultiplier() {
+        return config.getMilestoneMultiplier();
+    }
+
+    // One Pulpie, plus one per milestone reached, up to the maximum.
+    private int pulpieCountAt(int level) {
+        return Math.min(1 + milestonesReached(level), config.getMaxPulpies());
     }
 
     private void addMissingPulpies() {
-        while (pulpies.size() < targetPulpieCount()) {
+        while (pulpies.size() < pulpieCountAt(getLevel())) {
             pulpies.add(new Pulpie(fruit, crate));
         }
     }
@@ -111,11 +132,10 @@ public class Floor extends Station {
      * Speed is the number of trips per second of one Pulpie; capacity is what one Pulpie carries.
      */
     @Override
-    protected StationStats baseStats() {
+    protected StationStats statsAt(int level) {
         return new StationStats(
                 config.getFloorTripSpeed(),
-                config.getFloorBaseCarry(index) * levelBonus(config.getStatGrowth(),
-                        config.getMilestoneLevels(), config.getMilestoneMultiplier())
+                config.getFloorBaseCarry(index) * levelBonus(config.getStatGrowth(), level)
         );
     }
 
@@ -138,12 +158,11 @@ public class Floor extends Station {
     }
 
     /**
-     * @return the smoothie produced per second by all the Pulpies of the floor
+     * The smoothie produced per second by all the Pulpies of the floor.
      */
     @Override
-    public double getThroughput() {
-        StationStats stats = getStats();
-        return pulpies.size() * stats.getSpeed() * stats.getCapacity();
+    protected double throughputOf(StationStats stats, int level) {
+        return pulpieCountAt(level) * stats.getSpeed() * stats.getCapacity();
     }
 
     /**

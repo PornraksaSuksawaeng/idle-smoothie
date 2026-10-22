@@ -15,6 +15,8 @@ public final class NumberFormatter {
     private static final double WHOLE_ROUNDS_TO_THOUSAND = 999.5;
     // Shown with 2 decimals, 999.995 would become "1000.00" instead of moving to the next suffix.
     private static final double ROUNDS_TO_THOUSAND = 999.995;
+    // Below this, speeds and multipliers keep their decimals.
+    private static final double DECIMALS_LIMIT = 100;
 
     private NumberFormatter() {
     }
@@ -36,6 +38,21 @@ public final class NumberFormatter {
             tier++;
         }
         return String.format(Locale.ROOT, "%.2f", shown) + suffix(tier);
+    }
+
+    /**
+     * Formats a small number with up to 2 decimals and no trailing zeros, such as 2.16, 1.5 or 3,
+     * for speeds and multipliers. From 100 on, it is the same as {@link #format(double)}.
+     *
+     * @param value the number to format, 0 or more
+     * @return the short text to show
+     */
+    public static String formatDecimal(double value) {
+        if (value >= DECIMALS_LIMIT) {
+            return format(value);
+        }
+        String text = String.format(Locale.ROOT, "%.2f", value);
+        return text.replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 
     // 1 = K, 2 = M, 3 = B, 4 = T, then 5 = aa, 6 = ab, ..., 30 = az, 31 = ba.

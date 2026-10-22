@@ -137,16 +137,37 @@ public class Mine {
     }
 
     /**
+     * Returns the smoothie all the floors produce per second together.
+     *
+     * @return the production of the floors
+     */
+    public double getProductionRate() {
+        double production = 0;
+        for (Floor floor : floors) {
+            production += floor.getThroughput();
+        }
+        return production;
+    }
+
+    /**
+     * Returns the smoothie the mine sells per second once every station works:
+     * the slowest of the floors, the elevator and the sell station sets the pace.
+     *
+     * @return the smoothie sold per second
+     */
+    public double getDeliveryRate() {
+        return Math.min(getProductionRate(),
+                Math.min(elevator.getThroughput(), sellStation.getThroughput()));
+    }
+
+    /**
      * Compares the production of all floors, the elevator and the sell station.
      * The slowest one sets the pace of the whole mine.
      *
      * @return the type of station that limits the income
      */
     public StationType findBottleneck() {
-        double production = 0;
-        for (Floor floor : floors) {
-            production += floor.getThroughput();
-        }
+        double production = getProductionRate();
         StationType bottleneck = StationType.FLOOR;
         double lowest = production;
         if (elevator.getThroughput() < lowest) {

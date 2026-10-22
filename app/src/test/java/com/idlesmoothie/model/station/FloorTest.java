@@ -327,4 +327,44 @@ class FloorTest {
         double expected = before.getStats().getCapacity() * config.getStatGrowth() * config.getMilestoneMultiplier();
         assertEquals(expected, after.getStats().getCapacity(), DELTA * expected);
     }
+
+    @Test
+    void previewMatchesAnUpgradeWithoutChangingTheFloor() {
+        for (int extra : new int[] {1, 24, 60}) {
+            Floor floor = new Floor(1, Fruit.KIWI, config);
+            StationStats preview = floor.previewStats(extra);
+            double throughput = floor.previewThroughput(extra);
+            int pulpies = floor.previewPulpieCount(extra);
+
+            assertEquals(1, floor.getLevel());
+            assertEquals(1, floor.getPulpieCount());
+
+            floor.upgrade(extra);
+            assertEquals(floor.getStats().getSpeed(), preview.getSpeed(), DELTA);
+            assertEquals(floor.getStats().getCapacity(), preview.getCapacity(), DELTA);
+            assertEquals(floor.getThroughput(), throughput, DELTA);
+            assertEquals(floor.getPulpieCount(), pulpies);
+        }
+    }
+
+    @Test
+    void previewCountsTheMilestonePulpie() {
+        Floor floor = new Floor(0, Fruit.KIWI, config);
+        int toMilestone = config.getMilestoneLevels().get(0) - floor.getLevel();
+
+        assertEquals(1, floor.previewPulpieCount(toMilestone - 1));
+        assertEquals(2, floor.previewPulpieCount(toMilestone));
+    }
+
+    @Test
+    void previewIncludesTheManagerBonus() {
+        Floor floor = new Floor(0, Fruit.KIWI, config);
+        floor.assignManager(new Manager(Rarity.EPIC, StationType.FLOOR, new SpeedBoostAbility(2)));
+        StationStats preview = floor.previewStats(5);
+
+        floor.upgrade(5);
+
+        assertEquals(floor.getStats().getSpeed(), preview.getSpeed(), DELTA);
+        assertEquals(2 * config.getFloorTripSpeed(), preview.getSpeed(), DELTA);
+    }
 }

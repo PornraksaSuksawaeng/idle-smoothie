@@ -3,6 +3,7 @@ package com.idlesmoothie.model.station;
 import com.idlesmoothie.model.economy.Upgradable;
 import com.idlesmoothie.model.manager.Manager;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * Base class of every station of the mine: floors, elevator and sell station.
@@ -65,12 +66,37 @@ public abstract class Station implements Upgradable {
     }
 
     /**
+     * Returns the levels where the station reaches a milestone and its capacity is multiplied.
+     *
+     * @return the milestone levels, in increasing order
+     */
+    public abstract List<Integer> getMilestoneLevels();
+
+    /**
+     * Returns how much each milestone multiplies the capacity of this station.
+     *
+     * @return the multiplier of one milestone
+     */
+    public abstract double getMilestoneMultiplier();
+
+    /**
+     * Returns the raw stats the station has at the given level, before any bonus.
+     * It must not change the station, so the view can preview an upgrade.
+     *
+     * @param level the level to compute the stats for
+     * @return the raw stats at that level
+     */
+    protected abstract StationStats statsAt(int level);
+
+    /**
      * Returns the raw stats for the current level, before any bonus.
      * Use {@link #getStats()} everywhere else.
      *
      * @return the raw stats
      */
-    protected abstract StationStats baseStats();
+    protected final StationStats baseStats() {
+        return statsAt(level);
+    }
 
     /**
      * Does the station's job for the elapsed time.
@@ -202,21 +228,54 @@ public abstract class Station implements Upgradable {
      * @return the final stats
      */
     public StationStats getStats() {
-        StationStats stats = baseStats();
-        if (manager != null) {
-            stats = manager.apply(stats);
-        }
-        return stats;
+        return withManager(baseStats());
     }
 
     /**
-     * Returns the quantity of smoothie handled per second, speed times capacity.
+     * Returns the stats the station would have after buying more levels, with the manager's bonus applied.
+     * The station does not change.
+     *
+     * @param extraLevels the levels that would be bought, 0 for the current stats
+     * @return the final stats at that level
+     * @throws IllegalArgumentException if {@code extraLevels} is negative or goes past the maximum level
+     */
+    public StationStats previewStats(int extraLevels) {
+        return withManager(statsAt(levelAfter(extraLevels)));
+    }
+
+    /**
+     * Returns the quantity of smoothie handled per second.
      *
      * @return the throughput
      */
     public double getThroughput() {
-        StationStats stats = getStats();
-        return stats.getSpeed() * stats.getCapacity();
+        return throughputOf(getStats(), level);
+    }
+
+    /**
+     * Returns the throughput the station would have after buying more levels. The station does not change.
+     *
+     * @param extraLevels the levels that would be bought, 0 for the current throughput
+     * @return the throughput at that level
+     * @throws IllegalArgumentException if {@code extraLevels} is negative or goes past the maximum level
+     */
+    public double previewThroughput(int extraLevels) {
+        int target = levelAfter(extraLevels);
+        return throughputOf(withManager(statsAt(target)), target);
+    }
+
+    /**
+     * Returns the first milestone level above the current level.
+     *
+     * @return the next milestone, or an empty value once every milestone is reached
+     */
+    public OptionalInt getNextMilestone() {
+        for (int milestone : getMilestoneLevels()) {
+            if (milestone > level) {
+                return OptionalInt.of(milestone);
+            }
+        }
+        return OptionalInt.empty();
     }
 
     /**
@@ -238,14 +297,40 @@ public abstract class Station implements Upgradable {
     }
 
     /**
-     * Returns how many milestone levels the station has reached.
+     * Returns the quantity of smoothie handled per second with the given stats, speed times capacity.
+     * A subclass changes it when more things than the stats matter, such as its number of Pulpies.
      *
-     * @param milestones the milestone levels
-     * @return the number of milestones at or below the current level
+     * @param stats the final stats
+     * @param level the level the stats belong to
+     * @return the throughput
      */
-    protected final int milestonesReached(List<Integer> milestones) {
+    protected double throughputOf(StationStats stats, int level) {
+        return stats.getSpeed() * stats.getCapacity();
+    }
+
+    /**
+     * Returns the level the station would reach after buying more levels.
+     *
+     * @param extraLevels the levels that would be bought
+     * @return the level after the purchase
+     * @throws IllegalArgumentException if {@code extraLevels} is negative or goes past the maximum level
+     */
+    protected final int levelAfter(int extraLevels) {
+        if (extraLevels < 0 || extraLevels > getLevelsLeft()) {
+            throw new IllegalArgumentException("Cannot preview " + extraLevels + " more levels");
+        }
+        return level + extraLevels;
+    }
+
+    /**
+     * Returns how many milestone levels the station has reached at the given level.
+     *
+     * @param level the level to check
+     * @return the number of milestones at or below that level
+     */
+    protected final int milestonesReached(int level) {
         int count = 0;
-        for (int milestone : milestones) {
+        for (int milestone : getMilestoneLevels()) {
             if (level >= milestone) {
                 count++;
             }
@@ -254,16 +339,20 @@ public abstract class Station implements Upgradable {
     }
 
     /**
-     * Returns how many times its level 1 capacity the station has: it grows at each level,
-     * and each milestone reached multiplies it again.
+     * Returns how many times its level 1 capacity the station has at the given level: it grows at each level,
+     * and each milestone reached multiplies it by {@link #getMilestoneMultiplier()}.
      *
-     * @param growth     the factor gained at each level
-     * @param milestones the milestone levels
-     * @param multiplier the factor one milestone applies
-     * @return the total capacity multiplier for the current level
+     * @param growth the factor gained at each level
+     * @param level  the level to compute the bonus for
+     * @return the total capacity multiplier at that level
      */
-    protected final double levelBonus(double growth, List<Integer> milestones, double multiplier) {
-        return Math.pow(growth, level - 1) * Math.pow(multiplier, milestonesReached(milestones));
+    protected final double levelBonus(double growth, int level) {
+        return Math.pow(growth, level - 1) * Math.pow(getMilestoneMultiplier(), milestonesReached(level));
+    }
+
+    // Applies the manager's bonus to raw stats, if the station has a manager.
+    private StationStats withManager(StationStats stats) {
+        return manager == null ? stats : manager.apply(stats);
     }
 
     /**
