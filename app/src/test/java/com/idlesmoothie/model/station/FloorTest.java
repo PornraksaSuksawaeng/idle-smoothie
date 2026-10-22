@@ -367,4 +367,15 @@ class FloorTest {
         assertEquals(floor.getStats().getSpeed(), preview.getSpeed(), DELTA);
         assertEquals(2 * config.getFloorTripSpeed(), preview.getSpeed(), DELTA);
     }
+
+    @Test
+    void crateIsEmptyUntilAPulpieComesBack() {
+        Floor floor = new Floor(0, Fruit.KIWI, config);
+        assertTrue(floor.isCrateEmpty());
+
+        floor.start();
+        run(floor, oneTrip);
+
+        assertFalse(floor.isCrateEmpty());
+    }
 }
