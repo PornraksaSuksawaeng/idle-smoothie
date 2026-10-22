@@ -83,7 +83,7 @@ public class MineView implements Renderable {
     private static final double GRASS_HEIGHT = 16;
     private static final double GROUND_RAISE = 7;
     private static final double BARRIER_HEIGHT = 104;
-    private static final double UNLOCK_BUTTON_WIDTH = 76;
+    private static final double UNLOCK_BUTTON_WIDTH = 96;
     // The game has no getter for it; Game() uses the default config, so the value is the same.
     private static final int BARRIER_MIN_LEVEL = new BalanceConfig().getBarrierMinLevel();
     private static final double UNLOCK_BUTTON_HEIGHT = 52;
@@ -340,9 +340,6 @@ public class MineView implements Renderable {
         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
         drawSurface();
         drawSoilZones();
-        if (mine.hasNextFloor() && !mine.isBehindBarrier(mine.getFloors().size())) {
-            drawLockedFloor(mine.getFloors().size());
-        }
         List<Floor> floors = mine.getFloors();
         for (int i = floors.size() - 1; i >= 0; i--) {
             drawFloor(floors.get(i));
@@ -357,8 +354,8 @@ public class MineView implements Renderable {
                 drawBarrier(i);
             }
         }
-        if (hasBarrierButton()) {
-            drawBarrierButton();
+        if (mine.hasNextFloor()) {
+            drawNextFloorButton();
         }
         drawShaft();
         drawBridge();
@@ -403,8 +400,8 @@ public class MineView implements Renderable {
                 return;
             }
         }
-        if (hasBarrierButton() && getBarrierButton().contains(x, worldY)) {
-            onBarrierButton();
+        if (mine.hasNextFloor() && getNextFloorButton().contains(x, worldY)) {
+            onNextFloorButton();
             return;
         }
         if (getBar().contains(x, worldY)) {
@@ -421,17 +418,12 @@ public class MineView implements Renderable {
                 controller.onTap(floor);
             }
         }
-        double lockedTop = floorY(mine.getFloors().size());
-        if (mine.hasNextFloor() && !mine.isBehindBarrier(mine.getFloors().size())
-                && worldY >= lockedTop && worldY < lockedTop + floorHeight) {
-            controller.onUnlockFloor();
-        }
     }
 
     /**
-     * Buys the floor behind the barrier, or explains which floor must be upgraded first.
+     * Buys the next floor, or explains which floor must be upgraded first when it is behind a barrier.
      */
-    private void onBarrierButton() {
+    private void onNextFloorButton() {
         if (mine.canUnlockNextFloor()) {
             controller.onUnlockFloor();
             return;
@@ -594,22 +586,6 @@ public class MineView implements Renderable {
     }
 
     /**
-     * Draws the next floor to buy, highlighted when the player can buy it.
-     */
-    private void drawLockedFloor(int index) {
-        double y = floorY(index) - scrollY;
-        gc.setFill(game.canBuyNextFloor() ? BUYABLE_COLOR : LOCKED_COLOR);
-        gc.fillRect(getRoomX(), y, getRoomWidth(), roomHeight);
-        gc.setFill(Color.WHITE);
-        double textY = y + roomHeight / 2;
-        gc.fillText("Unlock floor " + (index + 1), getCrateX(), textY);
-        double detailY = textY + ROOM_MARGIN;
-        String cost = "Cost: " + NumberFormatter.format(mine.getNextFloorCost());
-        gc.fillText(cost, getCrateX(), detailY);
-        drawCoin(getCrateX() + textWidth(cost) + COIN_GAP, detailY);
-    }
-
-    /**
      * Draws the coin icon after a text, its bottom on the text baseline.
      */
     private void drawCoin(double x, double baselineY) {
@@ -639,17 +615,11 @@ public class MineView implements Renderable {
     }
 
     /**
-     * @return {@code true} if the next floor to buy is behind a barrier, bought with the button on the barrier
+     * Draws the button of the next floor, "Unlock" on a barrier and "Buy Floor" otherwise,
+     * green when the player can buy it.
      */
-    private boolean hasBarrierButton() {
-        return mine.hasNextFloor() && mine.isBehindBarrier(mine.getFloors().size());
-    }
-
-    /**
-     * Draws the "Unlock" button in the middle of the barrier, green when the player can buy the floor behind it.
-     */
-    private void drawBarrierButton() {
-        Box box = getBarrierButton();
+    private void drawNextFloorButton() {
+        Box box = getNextFloorButton();
         double y = box.y() - scrollY;
         gc.setFill(game.canBuyNextFloor() ? BUYABLE_COLOR : LOCKED_COLOR);
         gc.fillRoundRect(box.x(), y, box.width(), box.height(), BUTTON_RADIUS, BUTTON_RADIUS);
@@ -662,7 +632,8 @@ public class MineView implements Renderable {
         gc.setTextAlign(TextAlignment.CENTER);
         gc.setTextBaseline(VPos.CENTER);
         gc.setFont(UNLOCK_FONT);
-        gc.fillText("Unlock", centerX, y + box.height() * UNLOCK_TEXT_Y);
+        String label = mine.isBehindBarrier(mine.getFloors().size()) ? "Unlock" : "Buy Floor";
+        gc.fillText(label, centerX, y + box.height() * UNLOCK_TEXT_Y);
         gc.restore();
         gc.save();
         gc.setFill(Color.WHITE);
@@ -676,11 +647,19 @@ public class MineView implements Renderable {
     }
 
     /**
-     * @return where the "Unlock" button is, in world coordinates: centered on the barrier of the next floor
+     * @return where the button of the next floor is, in world coordinates: centered on the barrier above the next floor
+     *         if there is one, in the middle of the room of the next floor otherwise
      */
-    private Box getBarrierButton() {
-        return new Box((canvas.getWidth() - UNLOCK_BUTTON_WIDTH) / 2,
-                floorY(mine.getFloors().size()) - UNLOCK_BUTTON_HEIGHT / 2, UNLOCK_BUTTON_WIDTH, UNLOCK_BUTTON_HEIGHT);
+    private Box getNextFloorButton() {
+        int index = mine.getFloors().size();
+        double centerX = canvas.getWidth() / 2;
+        double centerY = floorY(index);
+        if (!mine.isBehindBarrier(index)) {
+            centerX = getRoomX() + getRoomWidth() / 2;
+            centerY += roomHeight / 2;
+        }
+        return new Box(centerX - UNLOCK_BUTTON_WIDTH / 2, centerY - UNLOCK_BUTTON_HEIGHT / 2,
+                UNLOCK_BUTTON_WIDTH, UNLOCK_BUTTON_HEIGHT);
     }
 
     /**
