@@ -59,19 +59,40 @@ public class SellStation extends Station {
         return config.getMaxLevel();
     }
 
+    @Override
+    public List<Integer> getMilestoneLevels() {
+        return config.getMilestoneLevels();
+    }
+
+    @Override
+    public double getMilestoneMultiplier() {
+        return config.getMilestoneMultiplier();
+    }
+
     /**
      * @return the number of Pulpies selling at the bar
      */
     public int getPulpieCount() {
-        return Math.min(1 + milestonesReached(config.getMilestoneLevels()), config.getMaxPulpies());
+        return pulpieCountAt(getLevel());
     }
 
     /**
-     * @return the smoothie sold per second by all the Pulpies of the bar
+     * Returns how many Pulpies the bar would have after buying more levels. The bar does not change.
+     *
+     * @param extraLevels the levels that would be bought, 0 for the current count
+     * @return the number of Pulpies at that level
+     * @throws IllegalArgumentException if {@code extraLevels} is negative or goes past the maximum level
+     */
+    public int previewPulpieCount(int extraLevels) {
+        return pulpieCountAt(levelAfter(extraLevels));
+    }
+
+    /**
+     * The smoothie sold per second by all the Pulpies of the bar.
      */
     @Override
-    public double getThroughput() {
-        return getPulpieCount() * super.getThroughput();
+    protected double throughputOf(StationStats stats, int level) {
+        return pulpieCountAt(level) * super.throughputOf(stats, level);
     }
 
     @Override
@@ -101,12 +122,16 @@ public class SellStation extends Station {
      * Speed is the number of sales per second; capacity is the quantity sold per sale.
      */
     @Override
-    protected StationStats baseStats() {
+    protected StationStats statsAt(int level) {
         return new StationStats(
                 config.getSellSpeed(),
-                config.getSellBaseCapacity() * levelBonus(config.getStatGrowth(),
-                        config.getMilestoneLevels(), config.getMilestoneMultiplier())
+                config.getSellBaseCapacity() * levelBonus(config.getStatGrowth(), level)
         );
+    }
+
+    // One Pulpie, plus one per milestone reached, up to the maximum.
+    private int pulpieCountAt(int level) {
+        return Math.min(1 + milestonesReached(level), config.getMaxPulpies());
     }
 
     /**
