@@ -15,6 +15,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -56,6 +57,9 @@ public class ShopView implements Renderable {
     private static final double STRONG_GLOW_RADIUS = 34;
     private static final double STRONG_GLOW_SPREAD = 0.6;
 
+    // The inside of the 76px portrait, within its 5px border.
+    private static final double PORTRAIT_SPRITE_HEIGHT = 66;
+
     private static final String QUESTION_MARK = "?";
     private static final String NO_MANAGER_HINT = "No manager: this station only works when you tap it.";
     private static final PseudoClass EMPTY = PseudoClass.getPseudoClass("empty");
@@ -66,6 +70,8 @@ public class ShopView implements Renderable {
     private final Label stationLabel = new Label();
     private final StackPane portrait = new StackPane();
     private final Label portraitText = new Label();
+    private final ImageView portraitImage = new ImageView();
+    private final ManagerSprites managerSprites = new ManagerSprites(PORTRAIT_SPRITE_HEIGHT);
     private final Label rarityBadge = new Label();
     private final Label bonusLabel = new Label();
     private final Label noManagerHint = hint(NO_MANAGER_HINT);
@@ -161,13 +167,17 @@ public class ShopView implements Renderable {
             portrait.setStyle("-fx-border-color: " + rarity.getColorHex() + ";");
             portraitText.setText(rarity.name().substring(0, 1));
             portraitText.setStyle("-fx-text-fill: " + rarity.getColorHex() + ";");
+            portraitImage.setImage(managerSprites.get(rarity));
             showRarity(rarityBadge, rarity);
             bonusLabel.setText(manager.getAbility().describe());
         } else {
             portrait.setStyle("");
             portraitText.setText(QUESTION_MARK);
             portraitText.setStyle("");
+            portraitImage.setImage(null);
         }
+        // the sprite replaces the letter; without a manager or a sheet, the letter or "?" stays
+        portraitText.setVisible(portraitImage.getImage() == null);
         String action = hired ? "REPLACE " : "HIRE ";
         hireButton.setText(action + NumberFormatter.format(game.getManagerCost(selected)));
         hireButton.setDisable(!game.canHireManager(selected));
@@ -185,7 +195,7 @@ public class ShopView implements Renderable {
      */
     private HBox createManagerCard() {
         portraitText.getStyleClass().add("portrait-text");
-        portrait.getChildren().add(portraitText);
+        portrait.getChildren().addAll(portraitImage, portraitText);
         portrait.getStyleClass().add("portrait");
         rarityBadge.getStyleClass().add("rarity-badge");
         bonusLabel.getStyleClass().add("bonus-text");

@@ -76,6 +76,12 @@ public class MineView implements Renderable {
     private static final double MANAGER_WIDTH = 24;
     private static final double MANAGER_HEIGHT = 48;
     private static final double MANAGER_GAP = 2;
+    // Room kept for a manager, wide enough for its sprite; the placeholder rectangle is centered in it.
+    private static final double MANAGER_SPACE = 60;
+    // The manager cells are 256px like the Pulpie cells, so the same size keeps the same scale.
+    private static final double MANAGER_SPRITE_HEIGHT = PULPIE_SPRITE_SIZE;
+    private static final double BREATH_AMPLITUDE = 0.03;
+    private static final double BREATH_PERIOD_SECONDS = 2.4;
     private static final double CABIN_MARGIN = 8;
     private static final double CABIN_HEIGHT = 60;
     // Share of the shaft width that puts the guide clamps of the cabin image (at 26% and 74% of the cabin)
@@ -140,6 +146,7 @@ public class MineView implements Renderable {
     private final Image elevatorImage;
     private final Image headframeImage;
     private final PulpieSprites pulpieSprites;
+    private final ManagerSprites managerSprites;
     private final Game game;
     private Mine mine;
     private final UpgradeController controller;
@@ -189,6 +196,7 @@ public class MineView implements Renderable {
         this.elevatorImage = loadImage("/images/mine/elevator.png");
         this.headframeImage = loadImage("/images/mine/headframe.png");
         this.pulpieSprites = new PulpieSprites(PULPIE_SPRITE_SIZE);
+        this.managerSprites = new ManagerSprites(MANAGER_SPRITE_HEIGHT);
     }
 
     /**
@@ -378,7 +386,7 @@ public class MineView implements Renderable {
      * Draws the Pulpie with the animation of its state, or as a square if the sheet does not exist yet.
      */
     private void drawPulpie(Pulpie pulpie, Fruit fruit, double floorScreenY) {
-        double start = getManagerX() + MANAGER_WIDTH + MANAGER_GAP;
+        double start = getManagerX() + MANAGER_SPACE + MANAGER_GAP;
         double end = getExtractorX() - PULPIE_SIZE;
         PulpieState state = pulpie.getState();
         double x = start;
@@ -645,7 +653,7 @@ public class MineView implements Renderable {
      * @return where the surface stock is shown, on the ground right of the elevator manager, in world coordinates
      */
     private Box getStockBox() {
-        return new Box(getElevatorManagerX() + MANAGER_WIDTH + CABIN_MARGIN,
+        return new Box(getElevatorManagerX() + MANAGER_SPACE + CABIN_MARGIN,
                 SURFACE_HEIGHT - LEVEL_HEIGHT - CABIN_MARGIN, LEVEL_WIDTH, LEVEL_HEIGHT);
     }
 
@@ -753,8 +761,9 @@ public class MineView implements Renderable {
     }
 
     /**
-     * Draws the manager of the station, if any, as a person-sized rectangle in the color of its rarity:
-     * in front of the crate on a floor, next to the shaft or to the bar on the surface.
+     * Draws the manager of the station, if any: in front of the crate on a floor, next to the shaft
+     * or to the bar on the surface. It is the sprite of its rarity, breathing slowly, or a person-sized
+     * rectangle in the color of its rarity if the sheet does not exist yet.
      */
     private void drawManager(Station station) {
         Manager manager = station.getManager();
@@ -764,11 +773,26 @@ public class MineView implements Renderable {
         double x = switch (station.getType()) {
             case FLOOR -> getManagerX();
             case ELEVATOR -> getElevatorManagerX();
-            case SELL -> getBarX() - MANAGER_WIDTH - MANAGER_GAP;
+            case SELL -> getBarX() - MANAGER_SPACE - MANAGER_GAP;
         };
         double groundY = station instanceof Floor floor ? floorY(floor.getIndex()) + roomHeight : SURFACE_HEIGHT;
+        if (managerSprites.isLoaded()) {
+            managerSprites.draw(gc, manager.getRarity(), x + MANAGER_SPACE / 2, groundY - scrollY, breath(station));
+            return;
+        }
         gc.setFill(Color.web(manager.getRarity().getColorHex()));
-        gc.fillRect(x, groundY - MANAGER_HEIGHT - scrollY, MANAGER_WIDTH, MANAGER_HEIGHT);
+        gc.fillRect(x + (MANAGER_SPACE - MANAGER_WIDTH) / 2, groundY - MANAGER_HEIGHT - scrollY,
+                MANAGER_WIDTH, MANAGER_HEIGHT);
+    }
+
+    /**
+     * @return the vertical stretch of a breathing manager, a few percent around 1; each station
+     *         has its own phase so the managers do not breathe together
+     */
+    private static double breath(Station station) {
+        double seconds = System.nanoTime() / 1e9;
+        double phase = System.identityHashCode(station) % 1000 / 1000.0;
+        return 1 + BREATH_AMPLITUDE * Math.sin(2 * Math.PI * (seconds / BREATH_PERIOD_SECONDS + phase));
     }
 
     /**
