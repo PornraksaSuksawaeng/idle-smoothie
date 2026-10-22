@@ -1,5 +1,7 @@
 package com.idlesmoothie.core;
 
+import java.util.List;
+
 /**
  * Every tuning value of the game in one place, so the balance can be changed without touching the logic.
  * Created once by the game and passed to every class that needs it.
@@ -8,10 +10,17 @@ package com.idlesmoothie.core;
 public final class BalanceConfig {
 
     private final double floorTripSpeed = 0.25;
-    private final double floorBaseCarry = 10;
-    private final double floorBaseCost = 50;
-    private final double upgradeCostGrowth = 1.07;
-    private final int levelsPerPulpie = 25;
+    private final List<Double> floorBaseCarries = List.of(20.0, 1_000.0, 10_000.0);
+    private final double floorCarryGrowth = 10;
+    private final List<Double> floorPrices = List.of(10.0, 2_600.0, 78_000.0);
+    private final double floorPriceGrowth = 20;
+    private final double floorUpgradeCostRatio = 1.16;
+    private final double statGrowth = 1.09;
+    private final double upgradeCostGrowth = 1.12;
+    private final int maxLevel = 500;
+    private final List<Integer> milestoneLevels = List.of(25, 50, 100, 250, 500);
+    private final double milestoneMultiplier = 2.16;
+    private final double elevatorMilestoneMultiplier = 3;
     private final int maxPulpies = 5;
     private final double elevatorMoveSpeed = 1.0;
     private final double elevatorBaseCapacity = 50;
@@ -20,19 +29,12 @@ public final class BalanceConfig {
     private final double sellBaseCapacity = 40;
     private final double sellBaseCost = 60;
     private final int floorsPerFruit = 3;
-    private final double newFloorBaseCost = 500;
-    private final double newFloorCostGrowth = 3.85;
     private final double barrierCostMultiplier = 1;
     private final int barrierMinLevel = 10;
     private final double smoothieBasePrice = 1;
     private final double managerCostMultiplier = 3;
     private final double managerCostGrowth = 1.5;
-    private final double floorDepthProductionGrowth = 2.5;
-    private final double floorDepthCostGrowth = 3;
-    private final int milestoneInterval = 25;
-    private final double milestoneMultiplier = 2;
     private final double elevatorSpeedGrowth = 0.02;
-    private final double transportMilestoneMultiplier = 2.5;
 
     /**
      * @return the number of full trips a Pulpie makes per second
@@ -42,17 +44,43 @@ public final class BalanceConfig {
     }
 
     /**
-     * @return the quantity a Pulpie carries per trip on the first floor at level 1
+     * Returns what a Pulpie carries per trip on a floor at level 1.
+     * The first floors are set by hand, then each floor carries {@code floorCarryGrowth} times more.
+     *
+     * @param index the floor index, starting at 0
+     * @return the quantity carried per trip at level 1
      */
-    public double getFloorBaseCarry() {
-        return floorBaseCarry;
+    public double getFloorBaseCarry(int index) {
+        return fromTable(floorBaseCarries, floorCarryGrowth, index);
     }
 
     /**
-     * @return the price of the first upgrade of the first floor
+     * Returns the price of a floor. The first floors are set by hand, then each floor costs
+     * {@code floorPriceGrowth} times more. The first floor is free, its price only sets its upgrade prices.
+     *
+     * @param index the floor index, starting at 0
+     * @return the price in coins
      */
-    public double getFloorBaseCost() {
-        return floorBaseCost;
+    public double getFloorPrice(int index) {
+        return fromTable(floorPrices, floorPriceGrowth, index);
+    }
+
+    /**
+     * Returns how many times the floor price its first upgrade costs.
+     *
+     * @return the ratio between the first upgrade and the floor price
+     */
+    public double getFloorUpgradeCostRatio() {
+        return floorUpgradeCostRatio;
+    }
+
+    /**
+     * Returns the factor applied to the capacity of every station at each level.
+     *
+     * @return the growth, such as {@code 1.09} for +9% per level
+     */
+    public double getStatGrowth() {
+        return statGrowth;
     }
 
     /**
@@ -63,14 +91,43 @@ public final class BalanceConfig {
     }
 
     /**
-     * @return the number of levels a floor needs to gain one more Pulpie
+     * @return the highest level a station can reach
      */
-    public int getLevelsPerPulpie() {
-        return levelsPerPulpie;
+    public int getMaxLevel() {
+        return maxLevel;
     }
 
     /**
-     * @return the maximum number of Pulpies on a floor
+     * Returns the levels where a station reaches a milestone: its capacity is multiplied,
+     * and floors and the sell station gain a Pulpie.
+     *
+     * @return the milestone levels, in increasing order
+     */
+    public List<Integer> getMilestoneLevels() {
+        return milestoneLevels;
+    }
+
+    /**
+     * Returns how much each milestone multiplies the capacity of a floor or of the sell station.
+     *
+     * @return the multiplier of one milestone
+     */
+    public double getMilestoneMultiplier() {
+        return milestoneMultiplier;
+    }
+
+    /**
+     * Returns how much each milestone multiplies the capacity of the elevator.
+     * It is higher than for the other stations, since the elevator never gains a Pulpie.
+     *
+     * @return the multiplier of one elevator milestone
+     */
+    public double getElevatorMilestoneMultiplier() {
+        return elevatorMilestoneMultiplier;
+    }
+
+    /**
+     * @return the maximum number of Pulpies on a floor or at the sell station
      */
     public int getMaxPulpies() {
         return maxPulpies;
@@ -125,20 +182,6 @@ public final class BalanceConfig {
     }
 
     /**
-     * @return the price of the second floor of the mine
-     */
-    public double getNewFloorBaseCost() {
-        return newFloorBaseCost;
-    }
-
-    /**
-     * @return the factor applied to the price of each deeper floor
-     */
-    public double getNewFloorCostGrowth() {
-        return newFloorCostGrowth;
-    }
-
-    /**
      * @return how many times more a floor behind a barrier costs than a normal floor
      */
     public double getBarrierCostMultiplier() {
@@ -178,42 +221,6 @@ public final class BalanceConfig {
     }
 
     /**
-     * Returns how many times more a floor produces than the floor above it.
-     *
-     * @return the production factor between two floors
-     */
-    public double getFloorDepthProductionGrowth() {
-        return floorDepthProductionGrowth;
-    }
-
-    /**
-     * Returns how many times more a floor's upgrades cost than those of the floor above it.
-     *
-     * @return the price factor between two floors
-     */
-    public double getFloorDepthCostGrowth() {
-        return floorDepthCostGrowth;
-    }
-
-    /**
-     * Returns every how many levels a station reaches a milestone that multiplies its capacity.
-     *
-     * @return the number of levels between two milestones
-     */
-    public int getMilestoneInterval() {
-        return milestoneInterval;
-    }
-
-    /**
-     * Returns how much each milestone multiplies the capacity of a station.
-     *
-     * @return the multiplier of one milestone, such as {@code 2} to double it
-     */
-    public double getMilestoneMultiplier() {
-        return milestoneMultiplier;
-    }
-
-    /**
      * Returns how much faster the elevator gets with each level, as a share of its base speed.
      *
      * @return the speed gained per level, such as {@code 0.02} for +2% per level
@@ -222,13 +229,15 @@ public final class BalanceConfig {
         return elevatorSpeedGrowth;
     }
 
-    /**
-     * Returns how much each milestone multiplies the capacity of the elevator and the sell station.
-     * It is higher than for floors, so the transport keeps up with a deeper and deeper mine.
-     *
-     * @return the multiplier of one transport milestone
-     */
-    public double getTransportMilestoneMultiplier() {
-        return transportMilestoneMultiplier;
+    // The value of the last floor of the table, multiplied by growth for each floor after it.
+    private static double fromTable(List<Double> table, double growth, int index) {
+        if (index < 0) {
+            throw new IllegalArgumentException("Index cannot be negative: " + index);
+        }
+        int last = table.size() - 1;
+        if (index <= last) {
+            return table.get(index);
+        }
+        return table.get(last) * Math.pow(growth, index - last);
     }
 }

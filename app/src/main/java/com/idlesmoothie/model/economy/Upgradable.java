@@ -9,6 +9,13 @@ public interface Upgradable {
     double getUpgradeCost();
 
     /**
+     * Returns how many levels can still be bought before the maximum level.
+     *
+     * @return the number of levels left, 0 at the maximum level
+     */
+    int getLevelsLeft();
+
+    /**
      * Adds levels.
      *
      * @param levels the number of levels to add

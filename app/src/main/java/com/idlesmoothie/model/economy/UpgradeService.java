@@ -36,6 +36,9 @@ public final class UpgradeService {
      */
     public UpgradeReport buy(Upgradable station, BuyMode mode) {
         int levels = levelsFor(station, mode);
+        if (levels == 0) {
+            return new UpgradeReport(0, 0);
+        }
         double cost = costOf(station, levels);
         if (!wallet.spendCoins(cost)) {
             return new UpgradeReport(0, 0);
@@ -50,25 +53,27 @@ public final class UpgradeService {
      *
      * @param station the station to level up
      * @param mode how many levels to buy 
-     * @return the cost in coins, maybe more than the wallet holds
+     * @return the cost in coins, maybe more than the wallet holds, 0 at the maximum level
      * @throws IllegalArgumentException if the upgrade cost of the {@code station} is not positive
      */
     public double previewCost(Upgradable station, BuyMode mode) {
         return costOf(station, levelsFor(station, mode));
     }
 
+    // Never more than the levels left before the maximum level.
     private int levelsFor(Upgradable station, BuyMode mode) {
-        return switch (mode) {
+        int levels = switch (mode) {
             case X1 -> 1;
             case X10 -> 10;
-            case MAX ->countMaxLevels(station);
+            case MAX -> countMaxLevels(station);
         };
+        return Math.min(levels, station.getLevelsLeft());
     }
 
     // Start at 1, then adds a level as long as the wallet can pay one more.
     private int countMaxLevels(Upgradable station) {
         int levels = 1;
-        while (wallet.canAfford(costOf(station, levels + 1))) {
+        while (levels < station.getLevelsLeft() && wallet.canAfford(costOf(station, levels + 1))) {
             levels++;
         }
         return levels;
@@ -76,6 +81,9 @@ public final class UpgradeService {
 
     // Each level costs the previous one times growth, so the total is a geometric series.
     private double costOf(Upgradable station, int levels) {
+        if (levels == 0) {
+            return 0;
+        }
         double next = station.getUpgradeCost();
         if (next <= 0) {
             throw new IllegalArgumentException("upgrade cost must be positive: " + next);

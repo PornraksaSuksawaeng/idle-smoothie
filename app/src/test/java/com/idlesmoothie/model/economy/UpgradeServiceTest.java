@@ -113,8 +113,10 @@ class UpgradeServiceTest {
         return total;
     }
 
-    // Smallest possible Upgradable: the next level costs baseCost * GROWTH^level.
+    // Smallest possible Upgradable: the next level costs baseCost * GROWTH^level, up to MAX_LEVEL levels.
     private static final class FakeStation implements Upgradable {
+        private static final int MAX_LEVEL = 1_000;
+
         private final double baseCost;
         private int level;
 
@@ -125,6 +127,11 @@ class UpgradeServiceTest {
         @Override
         public double getUpgradeCost() {
             return baseCost * Math.pow(GROWTH, level);
+        }
+
+        @Override
+        public int getLevelsLeft() {
+            return MAX_LEVEL - level;
         }
 
         @Override

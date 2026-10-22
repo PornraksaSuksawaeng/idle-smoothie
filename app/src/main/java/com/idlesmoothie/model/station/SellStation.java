@@ -12,8 +12,9 @@ import com.idlesmoothie.model.resource.Storage;
 
 /**
  * Station at the surface that sells smoothie for coins.
- * A sale takes up to its capacity from the surface stock, lasts one cycle, then pays the wallet.
- * Its speed is the number of sales per second; its capacity is the quantity sold per sale.
+ * A sale takes up to its capacity from the surface stock for each of its Pulpies, lasts one cycle,
+ * then pays the wallet. Each milestone level adds a Pulpie.
+ * Its speed is the number of sales per second; its capacity is the quantity one Pulpie sells per sale.
  */
 public class SellStation extends Station {
 
@@ -54,6 +55,26 @@ public class SellStation extends Station {
     }
 
     @Override
+    public int getMaxLevel() {
+        return config.getMaxLevel();
+    }
+
+    /**
+     * @return the number of Pulpies selling at the bar
+     */
+    public int getPulpieCount() {
+        return Math.min(1 + milestonesReached(config.getMilestoneLevels()), config.getMaxPulpies());
+    }
+
+    /**
+     * @return the smoothie sold per second by all the Pulpies of the bar
+     */
+    @Override
+    public double getThroughput() {
+        return getPulpieCount() * super.getThroughput();
+    }
+
+    @Override
     public double getUpgradeCost() {
         return getBaseUpgradeCost() * Math.pow(config.getUpgradeCostGrowth(), getLevel() - 1);
     }
@@ -83,8 +104,8 @@ public class SellStation extends Station {
     protected StationStats baseStats() {
         return new StationStats(
                 config.getSellSpeed(),
-                config.getSellBaseCapacity() * getLevel()
-                        * milestoneBonus(config.getMilestoneInterval(), config.getTransportMilestoneMultiplier())
+                config.getSellBaseCapacity() * levelBonus(config.getStatGrowth(),
+                        config.getMilestoneLevels(), config.getMilestoneMultiplier())
         );
     }
 
@@ -96,7 +117,7 @@ public class SellStation extends Station {
     protected void work(double dt) {
         StationStats stats = getStats();
         if (onSale.isEmpty()) {
-            onSale.addAll(surface.take(stats.getCapacity()));
+            onSale.addAll(surface.take(getPulpieCount() * stats.getCapacity()));
             timer.reset();
             if (onSale.isEmpty()) {
                 if (!isAutomated()) {

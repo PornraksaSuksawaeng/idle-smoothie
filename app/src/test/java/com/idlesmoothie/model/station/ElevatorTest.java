@@ -83,7 +83,8 @@ class ElevatorTest {
 
         assertEquals(config.getElevatorMoveSpeed() * (1 + 2 * config.getElevatorSpeedGrowth()),
                 elevator.getStats().getSpeed(), DELTA);
-        assertEquals(3 * config.getElevatorBaseCapacity(), elevator.getStats().getCapacity(), DELTA);
+        assertEquals(Math.pow(config.getStatGrowth(), 2) * config.getElevatorBaseCapacity(),
+                elevator.getStats().getCapacity(), DELTA);
     }
 
     @Test
@@ -251,11 +252,12 @@ class ElevatorTest {
     @Test
     void milestoneMultipliesCapacity() {
         Elevator elevator = new Elevator(floors, surface, config);
-        elevator.upgrade(config.getMilestoneInterval() - 1);
+        int milestone = config.getMilestoneLevels().get(0);
+        elevator.upgrade(milestone - 1);
 
-        double expected = config.getElevatorBaseCapacity() * config.getMilestoneInterval()
-                * config.getTransportMilestoneMultiplier();
+        double expected = config.getElevatorBaseCapacity() * Math.pow(config.getStatGrowth(), milestone - 1)
+                * config.getElevatorMilestoneMultiplier();
 
-        assertEquals(expected, elevator.getStats().getCapacity(), DELTA);
+        assertEquals(expected, elevator.getStats().getCapacity(), DELTA * expected);
     }
 }

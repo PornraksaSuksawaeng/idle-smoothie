@@ -89,7 +89,8 @@ public class Mine {
     }
 
     /**
-     * Deeper floors cost more; a floor behind a barrier costs {@code barrierCostMultiplier} times more.
+     * Deeper floors cost more, see {@link BalanceConfig#getFloorPrice(int)};
+     * a floor behind a barrier costs {@code barrierCostMultiplier} times more.
      *
      * @return the price in coins of the next floor
      * @throws IllegalStateException if the mine is complete
@@ -99,7 +100,7 @@ public class Mine {
             throw new IllegalStateException("The mine is complete");
         }
         int index = floors.size();
-        double cost = config.getNewFloorBaseCost() * Math.pow(config.getNewFloorCostGrowth(), index - 1);
+        double cost = config.getFloorPrice(index);
         if (isBehindBarrier(index)) {
             cost *= config.getBarrierCostMultiplier();
         }

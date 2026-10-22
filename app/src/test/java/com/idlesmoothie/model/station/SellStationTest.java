@@ -81,7 +81,7 @@ class SellStationTest {
         station.upgrade(2);
 
         assertEquals(config.getSellSpeed(), station.getStats().getSpeed(), DELTA);
-        assertEquals(3 * capacity(), station.getStats().getCapacity(), DELTA);
+        assertEquals(Math.pow(config.getStatGrowth(), 2) * capacity(), station.getStats().getCapacity(), DELTA);
     }
 
     @Test
@@ -244,7 +244,7 @@ class SellStationTest {
         station.start();
         run(station, oneSale());
 
-        assertEquals(capacity(), surface.getAmount(), DELTA);
+        assertEquals(3 * capacity() - station.getStats().getCapacity(), surface.getAmount(), DELTA);
         assertTrue(wallet.getCoins() > capacity() * UNIT_PRICE);
     }
 
@@ -262,10 +262,25 @@ class SellStationTest {
     @Test
     void milestoneMultipliesCapacity() {
         SellStation station = new SellStation(surface, prices, wallet, config);
-        station.upgrade(config.getMilestoneInterval() - 1);
+        int milestone = config.getMilestoneLevels().get(0);
+        station.upgrade(milestone - 1);
 
-        double expected = capacity() * config.getMilestoneInterval() * config.getTransportMilestoneMultiplier();
+        double expected = capacity() * Math.pow(config.getStatGrowth(), milestone - 1) * config.getMilestoneMultiplier();
 
-        assertEquals(expected, station.getStats().getCapacity(), DELTA);
+        assertEquals(expected, station.getStats().getCapacity(), DELTA * expected);
+        assertEquals(2, station.getPulpieCount());
+    }
+
+    @Test
+    void eachPulpieSellsItsCapacity() {
+        SellStation station = new SellStation(surface, prices, wallet, config);
+        station.upgrade(config.getMilestoneLevels().get(0) - 1);
+        double perSale = station.getPulpieCount() * station.getStats().getCapacity();
+        fillSurface(perSale + 1);
+
+        station.start();
+        station.update(0);
+
+        assertEquals(perSale, station.getOnSaleAmount(), DELTA * perSale);
     }
 }
