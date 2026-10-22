@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""Clean the generated Pulpie sprite sheets and pack them for the game.
+"""Clean the generated Pulpie and manager sprite sheets and pack them for the game.
 
 Reads   art/raw/<fruit>/<animation>.png          (a grid sheet)
    or   art/raw/<fruit>/<animation>/01.png ...   (one image per frame)
+        art/raw/managers/rarities.png            (the five managers, COMMON to MYTHIC, or a rarities/ folder)
 Writes  app/src/main/resources/images/pulpies/<fruit>/<animation>.png   (one row of CELL x CELL frames)
+        app/src/main/resources/images/managers/rarities.png             (one row, one cell per rarity)
         art/preview/<fruit>_<animation>.gif     (the loop)
         art/preview/<fruit>_all.gif             (every animation of the fruit side by side)
+        art/preview/managers.png                (each manager next to the reference Pulpie)
 
 For each sheet: remove a plain background if the image has no transparency, give each piece to the
 grid cell its center falls in, scale the sheet so the Pulpie has TARGET_HEIGHT, then place every
-frame with the feet on GROUND_Y and the body center on BODY_X.
+frame with the feet on GROUND_Y and the body center on BODY_X. The managers wear a hat, so their
+sheet is scaled on the body alone, to the body size of the MANAGER_REFERENCE Pulpie.
 
 Usage (from the repo root, needs Pillow: python3 -m pip install Pillow):
-    python3 tools/sprites.py                    every fruit that has files
+    python3 tools/sprites.py                    every fruit that has files, then the managers
     python3 tools/sprites.py strawberry kiwi    only these fruits
+    python3 tools/sprites.py managers           only the managers (the Pulpie sheets must exist)
 """
 
 import statistics
@@ -50,6 +55,13 @@ OFFSET_FIX = {
     ("kiwi", "deposit"): (-8, 0),   # frame 4 pushes the crate past the cell margin
 }
 
+MANAGERS = "managers"
+MANAGER_GRID = (5, 1)                       # COMMON, RARE, EPIC, LEGENDARY, MYTHIC, left to right
+MANAGER_REFERENCE = ("strawberry", "idle")  # the managers get the body size of this Pulpie sheet
+MANAGER_SCALE_FIX = 0.77                    # share of the Pulpie's body size; at 1.0 the hat needs a taller cell
+MANAGER_CELL = (256, 256)                   # the feet stay CELL - GROUND_Y pixels above the bottom and the
+                                            # body is centered, since the managers face the player
+
 PREVIEW_MS = {"walk": 100, "fill": 120, "carry": 100, "deposit": 120, "idle": 180}
 PREVIEW_BG = (190, 225, 240)
 
@@ -64,11 +76,15 @@ FEET_BAND = 0.40        # feet are searched within body center +- this share of 
 HUE_TOLERANCE = 18      # body color match, in Pillow hue units (0-255)
 BACK_BAND = 0.45        # back-half feet are searched from body center - this share of the body width
 FEET_COLOR_GAP = 0.05   # body-colored feet this share of the height above the back-half feet are wrong
+BODY_TOP_FROM = 0.35    # the top of the body is searched from this share of the height above the feet
+BODY_TOP_WIDENING = 0.05  # going up, the silhouette this much wider than the body means a hat or leaves
+UPPER_BODY = (0.70, 0.95)  # share of the body height, above the feet, where the body has no arms or props
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "art" / "raw"
 PREVIEW = ROOT / "art" / "preview"
 OUT = ROOT / "app" / "src" / "main" / "resources" / "images" / "pulpies"
+MANAGERS_OUT = ROOT / "app" / "src" / "main" / "resources" / "images" / "managers"
 
 
 class SpriteError(Exception):
@@ -174,7 +190,7 @@ def cut_frame(image, pieces):
     return frame.crop(box), main.crop(box)
 
 
-def load_frames(fruit, animation):
+def load_frames(fruit, animation, grid=None):
     folder = RAW / fruit / animation
     sheet = RAW / fruit / f"{animation}.png"
     name = f"{fruit}/{animation}"
@@ -192,7 +208,7 @@ def load_frames(fruit, animation):
         return frames
     if not sheet.is_file():
         return None
-    columns, rows = GRIDS[animation]
+    columns, rows = grid or GRIDS[animation]
     image = load_rgba(sheet)
     width, height = image.size
     cells = [[] for _ in range(columns * rows)]
@@ -291,42 +307,96 @@ def choose_feet(measures_by_animation):
 
 # --- Packing ---------------------------------------------------------------------------------
 
-def pack(fruit, animation, frames, measures):
+def body_height(main, feet):
+    """Height from the feet to the top of the body, under whatever sits on the head (leaves or a hat).
+
+    Going up from the middle of the figure the body gets narrower, until the leaves or the hat brim
+    make the silhouette wider again. Uses only the shape, never the color.
+    """
+    width = main.size[0]
+    top = main.getbbox()[1]
+    rows = main.tobytes()
+    narrowest_y, narrowest = None, None
+    for y in range(int(feet - BODY_TOP_FROM * (feet - top)), top, -1):
+        length = longest_run(rows[y * width:(y + 1) * width])[1]
+        if narrowest is None or length < narrowest:
+            narrowest_y, narrowest = y, length
+        elif length > narrowest * (1 + BODY_TOP_WIDENING):
+            break
+    return feet - narrowest_y
+
+
+def upper_body_x(main, feet, height):
+    """Center of the upper body, between the arms and the hat brim, for figures seen from the front."""
+    width = main.size[0]
+    rows = main.tobytes()
+    centers = []
+    for y in range(int(feet - UPPER_BODY[1] * height), int(feet - UPPER_BODY[0] * height)):
+        start, length = longest_run(rows[y * width:(y + 1) * width])
+        centers.append(start + (length - 1) / 2)
+    return statistics.median(centers)
+
+
+def reference_body_height():
+    """Body height, in output pixels, of the MANAGER_REFERENCE Pulpie sheet already in the game."""
+    fruit, animation = MANAGER_REFERENCE
+    path = OUT / fruit / f"{animation}.png"
+    if not path.is_file():
+        raise SpriteError(f"{path.relative_to(ROOT)} is missing: the managers are sized on it, "
+                          f"run the tool on {fruit} first")
+    sheet = Image.open(path).convert("RGBA")
+    heights = []
+    for index in range(sheet.width // CELL):
+        alpha = sheet.crop((index * CELL, 0, (index + 1) * CELL, CELL)).getchannel("A")
+        heights.append(body_height(alpha.point(lambda v: 255 if v >= ALPHA_MIN else 0), GROUND_Y))
+    return statistics.median(heights)
+
+
+def pack(fruit, animation, frames, measures, scale=None, cell_size=(CELL, CELL), cell_body_x=BODY_X):
     height = statistics.median(feet - top for _, feet, top in measures)
-    scale = TARGET_HEIGHT / height * SCALE_FIX.get((fruit, animation), 1.0)
+    if scale is None:
+        scale = TARGET_HEIGHT / height * SCALE_FIX.get((fruit, animation), 1.0)
     dx, dy = OFFSET_FIX.get((fruit, animation), (0, 0))
+    cell_width, cell_height = cell_size
+    ground_y = ground_line(cell_height)
     cells, clipped = [], []
     for number, ((frame, _), (body_x, feet, _)) in enumerate(zip(frames, measures), start=1):
         size = (max(1, round(frame.width * scale)), max(1, round(frame.height * scale)))
         scaled = frame.resize(size, Image.LANCZOS)
-        left = round(BODY_X + dx - body_x * scale)
-        top = round(GROUND_Y + dy - feet * scale)
+        left = round(cell_body_x + dx - body_x * scale)
+        top = round(ground_y + dy - feet * scale)
         bbox = scaled.getchannel("A").getbbox()
         if bbox and (left + bbox[0] < EDGE_MARGIN or top + bbox[1] < EDGE_MARGIN
-                     or left + bbox[2] > CELL - EDGE_MARGIN or top + bbox[3] > CELL - EDGE_MARGIN):
+                     or left + bbox[2] > cell_width - EDGE_MARGIN or top + bbox[3] > cell_height - EDGE_MARGIN):
             clipped.append(number)
-        cell = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+        cell = Image.new("RGBA", cell_size, (0, 0, 0, 0))
         cell.paste(scaled, (left, top))  # the cell is empty, so a plain copy keeps the alpha exact
         cells.append(cell)
     return cells, height, scale, clipped
 
 
-def write_sheet(fruit, animation, cells):
-    path = OUT / fruit / f"{animation}.png"
+def write_sheet(path, cells):
     path.parent.mkdir(parents=True, exist_ok=True)
-    strip = Image.new("RGBA", (CELL * len(cells), CELL), (0, 0, 0, 0))
+    width, height = cells[0].size
+    strip = Image.new("RGBA", (width * len(cells), height), (0, 0, 0, 0))
     for index, cell in enumerate(cells):
-        strip.paste(cell, (index * CELL, 0))
+        strip.paste(cell, (index * width, 0))
     strip.save(path)
     return path
 
 
-def on_background(cell, guides=False):
+def ground_line(cell_height):
+    """The feet stay CELL - GROUND_Y pixels above the bottom of the cell, whatever its height."""
+    return cell_height - (CELL - GROUND_Y)
+
+
+def on_background(cell, guides=False, body_x=BODY_X):
     image = Image.new("RGBA", cell.size, PREVIEW_BG + (255,))
     if guides:
         draw = ImageDraw.Draw(image)
-        draw.line([(0, GROUND_Y), (cell.width, GROUND_Y)], fill=(120, 160, 180))
-        draw.line([(BODY_X, 0), (BODY_X, cell.height)], fill=(120, 160, 180))
+        ground_y = ground_line(cell.height)
+        draw.line([(0, ground_y), (cell.width, ground_y)], fill=(120, 160, 180))
+        draw.line([(body_x, 0), (body_x, cell.height)], fill=(120, 160, 180))
     image.alpha_composite(cell)
     return image.convert("RGB")
 
@@ -355,6 +425,55 @@ def write_comparison(fruit, sheets):
     write_gif(PREVIEW / f"{fruit}_all.gif", images, 120)
 
 
+def pack_managers():
+    """Packs the rarities sheet with one scale, so the managers' bodies match the reference Pulpie's body."""
+    frames = load_frames(MANAGERS, "rarities", MANAGER_GRID)
+    if frames is None:
+        print(f"{MANAGERS:13} skipped, no rarities.png or rarities/ in {(RAW / MANAGERS).relative_to(ROOT)}/")
+        return False
+    measures, _ = choose_feet({"rarities": [measure(frame, main) for frame, main in frames]})
+    measures = measures["rarities"]
+    bodies = [body_height(main, feet) for (_, main), (_, feet, _) in zip(frames, measures)]
+    measures = [(upper_body_x(main, feet, body), feet, top)
+                for (_, main), (_, feet, top), body in zip(frames, measures, bodies)]
+    reference = reference_body_height()
+    match = reference / statistics.median(bodies) * MANAGER_SCALE_FIX
+    # The hat makes a manager much taller than a Pulpie of the same body size: keep it inside the cell.
+    fit = (ground_line(MANAGER_CELL[1]) - EDGE_MARGIN) / max(feet - top for _, feet, top in measures)
+    scale = min(match, fit)
+    cells, _, _, clipped = pack(MANAGERS, "rarities", frames, measures, scale, MANAGER_CELL, MANAGER_CELL[0] // 2)
+    path = write_sheet(MANAGERS_OUT / "rarities.png", cells)
+    write_manager_preview(cells)
+    note = (f"  WARNING: frames {clipped} reach the {EDGE_MARGIN}px cell margin; "
+            f"move them with OFFSET_FIX or shrink them with MANAGER_SCALE_FIX" if clipped else "")
+    full = reference / statistics.median(bodies)
+    size = f"body {scale / full:.0%} of the Pulpie's" + (
+        "" if scale == match else f", capped to fit the cell (raise the height of MANAGER_CELL for more)")
+    print(f"{MANAGERS:13} rarities {len(cells)} frames  body {statistics.median(bodies):6.1f}px  "
+          f"scale {scale:.3f}, {size}  -> {path.relative_to(ROOT)}{note}")
+    return True
+
+
+def write_manager_preview(cells):
+    """Each manager next to the first frame of the reference Pulpie, on the same ground line."""
+    fruit, animation = MANAGER_REFERENCE
+    pulpie = Image.open(OUT / fruit / f"{animation}.png").convert("RGBA").crop((0, 0, CELL, CELL))
+    names = ["COMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"]
+    label_height = 18
+    width, height = cells[0].size
+    image = Image.new("RGB", ((width + CELL) * len(cells), height + label_height), "white")
+    draw = ImageDraw.Draw(image)
+    for index, cell in enumerate(cells):
+        x = (width + CELL) * index
+        image.paste(on_background(cell, guides=True, body_x=width // 2), (x, label_height))
+        # both cells keep their feet the same distance above the bottom, so align the bottoms
+        image.paste(on_background(pulpie, guides=True), (x + width, label_height + height - CELL))
+        draw.text((x + 6, 3), names[index] if index < len(names) else str(index + 1), fill="black")
+        draw.text((x + width + 6, 3), f"{fruit} {animation}", fill="gray")
+    PREVIEW.mkdir(parents=True, exist_ok=True)
+    image.save(PREVIEW / "managers.png")
+
+
 def _gcd(a, b):
     while b:
         a, b = b, a % b
@@ -362,11 +481,15 @@ def _gcd(a, b):
 
 
 def main(fruits):
-    unknown = [fruit for fruit in fruits if fruit not in FRUITS]
+    unknown = [fruit for fruit in fruits if fruit not in FRUITS + [MANAGERS]]
     if unknown:
-        raise SpriteError(f"unknown fruit {', '.join(unknown)}; expected one of {', '.join(FRUITS)}")
+        raise SpriteError(f"unknown fruit {', '.join(unknown)}; expected one of "
+                          f"{', '.join(FRUITS + [MANAGERS])}")
     done = 0
     for fruit in fruits:
+        if fruit == MANAGERS:
+            done += pack_managers()
+            continue
         frames_by_animation = {}
         for animation in GRIDS:
             frames = load_frames(fruit, animation)
@@ -381,7 +504,7 @@ def main(fruits):
         sheets = {}
         for animation, frames in frames_by_animation.items():
             cells, height, scale, clipped = pack(fruit, animation, frames, measures[animation])
-            path = write_sheet(fruit, animation, cells)
+            path = write_sheet(OUT / fruit / f"{animation}.png", cells)
             write_gif(PREVIEW / f"{fruit}_{animation}.gif", [on_background(c) for c in cells],
                       PREVIEW_MS[animation])
             sheets[animation] = cells
@@ -400,6 +523,6 @@ def main(fruits):
 
 if __name__ == "__main__":
     try:
-        main(sys.argv[1:] or FRUITS)
+        main(sys.argv[1:] or FRUITS + [MANAGERS])
     except SpriteError as error:
         sys.exit(f"sprites.py: {error}")
