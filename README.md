@@ -21,19 +21,59 @@ Pulpies extract smoothie on 15 floors, in 5 fruit zones from strawberry to drago
 The elevator brings it up, and the Smoothie Bar sells it for coins.
 Coins buy upgrades, new floors behind each zone's barrier, and managers that run a station on their own.
 
-## Assets
+## The mine
+
+<details>
+<summary>Open the cross-section, from the surface down to dragon fruit</summary>
+<br>
+<div align="center">
+<img src="docs/readme/mine.png" width="320" alt="The mine as a cross-section: the surface, then one room per fruit zone">
+</div>
+</details>
+
+## Fruit zones
 
 <div align="center">
 
-<img src="docs/readme/pulpies.png" width="520" alt="The five Pulpies">
+| Strawberry | Blueberry | Kiwi | Mango | Dragon fruit |
+| :---: | :---: | :---: | :---: | :---: |
+| <img src="docs/readme/zone_strawberry_walk.gif" width="80" alt="Strawberry Pulpie"> | <img src="docs/readme/zone_blueberry_walk.gif" width="80" alt="Blueberry Pulpie"> | <img src="docs/readme/zone_kiwi_walk.gif" width="80" alt="Kiwi Pulpie"> | <img src="docs/readme/zone_mango_walk.gif" width="80" alt="Mango Pulpie"> | <img src="docs/readme/zone_dragon_fruit_walk.gif" width="80" alt="Dragon fruit Pulpie"> |
+| <img src="docs/readme/zone_strawberry_crate.png" width="80" alt="Strawberry crate"> | <img src="docs/readme/zone_blueberry_crate.png" width="80" alt="Blueberry crate"> | <img src="docs/readme/zone_kiwi_crate.png" width="80" alt="Kiwi crate"> | <img src="docs/readme/zone_mango_crate.png" width="80" alt="Mango crate"> | <img src="docs/readme/zone_dragon_fruit_crate.png" width="80" alt="Dragon fruit crate"> |
+| <img src="docs/readme/zone_strawberry_soil.png" width="80" alt="Strawberry soil"> | <img src="docs/readme/zone_blueberry_soil.png" width="80" alt="Blueberry soil"> | <img src="docs/readme/zone_kiwi_soil.png" width="80" alt="Kiwi soil"> | <img src="docs/readme/zone_mango_soil.png" width="80" alt="Mango soil"> | <img src="docs/readme/zone_dragon_fruit_soil.png" width="80" alt="Dragon fruit soil"> |
 
-<img src="docs/readme/managers.png" width="520" alt="The five managers, Common to Mythic">
-
-<img src="docs/readme/walk.gif" width="120" alt="A Pulpie walking">
-
-<sub>Generated with ChatGPT, then cleaned and packed into sprite sheets by <code>tools/sprites.py</code>.</sub>
+<img src="docs/readme/crate_empty.png" width="80" alt="Empty crate"><br>
+<sub>Empty crate</sub>
 
 </div>
+
+## Managers
+
+<div align="center">
+
+| <img src="docs/readme/manager_common.png" width="96" alt="Common manager"> | <img src="docs/readme/manager_rare.png" width="96" alt="Rare manager"> | <img src="docs/readme/manager_epic.png" width="96" alt="Epic manager"> | <img src="docs/readme/manager_legendary.png" width="96" alt="Legendary manager"> | <img src="docs/readme/manager_mythic.png" width="96" alt="Mythic manager"> |
+| :---: | :---: | :---: | :---: | :---: |
+| Common | Rare | Epic | Legendary | Mythic |
+
+<sub>Pulpies and managers: generated with ChatGPT, then cleaned and packed into sprite sheets by <code>tools/sprites.py</code>.</sub>
+
+</div>
+
+## Stations
+
+<div align="center">
+
+<img src="docs/readme/stations.png" width="576" alt="The headframe, the elevator cabin, the bridge and the Smoothie Bar">
+
+<img src="docs/readme/icons.png" width="228" alt="The coin, speed, settings and smoothie icons">
+
+</div>
+
+## Soundtrack
+
+<!-- Paste the video link that github.com gives you on the line below, alone on its line. -->
+SOUNDTRACK_VIDEO_LINK
+
+[Download the music (MP3)](app/src/main/resources/audio/music.mp3)
 
 ## How we built it
 
@@ -72,10 +112,6 @@ On Windows: `gradlew.bat run` and `gradlew.bat test`.
 
 ## Team
 
-<div align="center">
-
-| Leo Bellard | Mathis Monnin | Pornraksa Suksawaeng |
-| :---: | :---: | :---: |
-| [LinkedIn](https://www.linkedin.com/in/leo-bellard/) | [LinkedIn](https://www.linkedin.com/in/mathis-monnin/) | [LinkedIn](https://www.linkedin.com/in/pornraksa-suksawaeng) |
-
-</div>
+<a href="https://www.linkedin.com/in/leo-bellard/"><img src="docs/readme/linkedin.svg" width="16" alt="LinkedIn"></a>&nbsp; Leo Bellard<br>
+<a href="https://www.linkedin.com/in/mathis-monnin/"><img src="docs/readme/linkedin.svg" width="16" alt="LinkedIn"></a>&nbsp; Mathis Monnin<br>
+<a href="https://www.linkedin.com/in/pornraksa-suksawaeng"><img src="docs/readme/linkedin.svg" width="16" alt="LinkedIn"></a>&nbsp; Pornraksa Suksawaeng
