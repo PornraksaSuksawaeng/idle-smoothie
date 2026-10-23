@@ -262,6 +262,19 @@ class ElevatorTest {
     }
 
     @Test
+    void capacityGrowsFasterPastTheLateGrowthLevel() {
+        Elevator elevator = new Elevator(floors, surface, config);
+        int late = config.getLateGrowthLevel();
+        elevator.upgrade(late - 1);
+        double atLateLevel = elevator.getStats().getCapacity();
+
+        elevator.upgrade(1);
+
+        assertEquals(atLateLevel * config.getLateStatGrowth(), elevator.getStats().getCapacity(),
+                DELTA * atLateLevel);
+    }
+
+    @Test
     void previewMatchesAnUpgradeWithoutChangingTheElevator() {
         floors.add(new Floor(0, Fruit.KIWI, config));
         Elevator elevator = new Elevator(floors, surface, config);

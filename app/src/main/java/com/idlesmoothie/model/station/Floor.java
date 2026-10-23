@@ -22,6 +22,8 @@ public class Floor extends Station {
     private final Storage crate;
     private final List<Pulpie> pulpies = new ArrayList<>();
     private boolean roundStarted;
+    private double roundTime;
+    private int dispatched;
 
     /**
      * Creates a floor at level 1 with its first Pulpie.
@@ -190,25 +192,31 @@ public class Floor extends Station {
     }
 
     /**
-     * Sends the Pulpies on their trips. A tap sends every Pulpie once and the round ends when all
-     * are back; with a manager, each Pulpie leaves again as soon as it is back.
+     * Sends the Pulpies on their trips, one after the other with {@code pulpieStartDelay} between them.
+     * A tap sends every Pulpie once and the round ends when all are back; with a manager,
+     * each Pulpie leaves again as soon as it is back.
      */
     @Override
     protected void work(double dt) {
         StationStats stats = getStats();
         if (!roundStarted) {
-            for (Pulpie pulpie : pulpies) {
-                pulpie.dispatch();
-            }
             roundStarted = true;
+            roundTime = 0;
+            dispatched = 0;
         }
-        for (Pulpie pulpie : pulpies) {
-            if (isAutomated()) {
+        while (dispatched < pulpies.size() && roundTime >= dispatched * config.getPulpieStartDelay()) {
+            pulpies.get(dispatched).dispatch();
+            dispatched++;
+        }
+        roundTime += dt;
+        for (int i = 0; i < pulpies.size(); i++) {
+            Pulpie pulpie = pulpies.get(i);
+            if (isAutomated() && i < dispatched) {
                 pulpie.dispatch();
             }
             pulpie.update(dt, stats.getSpeed(), stats.getCapacity());
         }
-        if (!isAutomated() && allIdle()) {
+        if (!isAutomated() && dispatched == pulpies.size() && allIdle()) {
             roundStarted = false;
             endRound();
         }

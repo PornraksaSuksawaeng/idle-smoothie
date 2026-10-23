@@ -216,10 +216,27 @@ class FloorTest {
         upgradeToSecondPulpie(floor);
 
         floor.start();
-        run(floor, oneTrip);
+        run(floor, oneTrip + (floor.getPulpieCount() - 1) * config.getPulpieStartDelay());
 
         double expected = floor.getPulpieCount() * floor.getStats().getCapacity();
         assertEquals(expected, floor.getStoredAmount(), DELTA);
+    }
+
+    @Test
+    void pulpiesLeaveOneAfterTheOther() {
+        Floor floor = new Floor(0, Fruit.STRAWBERRY, config);
+        upgradeToSecondPulpie(floor);
+        List<Pulpie> pulpies = floor.getPulpies();
+
+        floor.start();
+        run(floor, config.getPulpieStartDelay() / 2);
+
+        assertFalse(pulpies.get(0).isIdle());
+        assertTrue(pulpies.get(1).isIdle());
+
+        run(floor, config.getPulpieStartDelay());
+
+        assertFalse(pulpies.get(1).isIdle());
     }
 
     @Test

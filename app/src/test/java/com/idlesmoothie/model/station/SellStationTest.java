@@ -272,6 +272,19 @@ class SellStationTest {
     }
 
     @Test
+    void capacityGrowsFasterPastTheLateGrowthLevel() {
+        SellStation station = new SellStation(surface, prices, wallet, config);
+        int late = config.getLateGrowthLevel();
+        station.upgrade(late - 1);
+        double atLateLevel = station.getStats().getCapacity();
+
+        station.upgrade(1);
+
+        assertEquals(atLateLevel * config.getLateStatGrowth(), station.getStats().getCapacity(),
+                DELTA * atLateLevel);
+    }
+
+    @Test
     void eachPulpieSellsItsCapacity() {
         SellStation station = new SellStation(surface, prices, wallet, config);
         station.upgrade(config.getMilestoneLevels().get(0) - 1);
