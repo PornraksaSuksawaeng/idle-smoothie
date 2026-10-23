@@ -17,7 +17,7 @@
 
 ## Demo
 
-https://github.com/user-attachments/assets/5948633a-cbe7-410e-8047-a69330458265
+https://github.com/user-attachments/assets/f9089463-8741-4447-ad47-e72194a86cee
 
 <sub>A run from the first floor: tapping the stations, upgrading, unlocking floors and hiring managers.</sub>
 
