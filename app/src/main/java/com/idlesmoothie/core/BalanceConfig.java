@@ -24,6 +24,7 @@ public final class BalanceConfig {
     private final double milestoneMultiplier = 2.16;
     private final double elevatorMilestoneMultiplier = 3;
     private final int maxPulpies = 5;
+    private final double pulpieStartDelay = 0.4;
     private final double elevatorMoveSpeed = 1.0;
     private final double elevatorBaseCapacity = 50;
     private final double elevatorBaseCost = 75;
@@ -154,6 +155,16 @@ public final class BalanceConfig {
     public int getMaxPulpies() {
         return maxPulpies;
     }
+    /**
+     * Returns the time between the departures of two Pulpies of the same floor, so they do not walk on top
+     * of each other.
+     *
+     * @return the delay in seconds
+     */
+    public double getPulpieStartDelay() {
+        return pulpieStartDelay;
+    }
+
     /**
      * @return the number of floors the elevator travels per second
      */
