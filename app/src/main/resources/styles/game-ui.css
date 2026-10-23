@@ -1,0 +1,455 @@
+/* Shared look of the game popups: a wooden frame around a sheet of paper, with chunky cartoon buttons. */
+
+@font-face {
+    font-family: 'Lilita One';
+    src: url("../fonts/LilitaOne-Regular.ttf");
+}
+
+/* ---------- Popup layout ---------- */
+
+.overlay {
+    -fx-background-color: rgba(20, 10, 5, 0.65);
+}
+
+.wood-frame {
+    -fx-background-color:
+        #3D2314,
+        linear-gradient(to bottom, #C98A4B, #A86A35 55%, #8A5428);
+    -fx-background-insets: 0, 4;
+    -fx-background-radius: 26, 22;
+    -fx-padding: 18;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 24, 0.2, 0, 8);
+}
+
+.paper {
+    -fx-background-color:
+        #B9A884,
+        linear-gradient(to bottom, #FBF6E9, #EFE6CF);
+    -fx-background-insets: 0, 3;
+    -fx-background-radius: 16, 13;
+    -fx-padding: 56 26 30 26;
+    -fx-min-height: 190;
+    -fx-spacing: 16;
+    -fx-alignment: top-center;
+}
+
+.nail {
+    -fx-fill: radial-gradient(center 35% 35%, radius 60%, #F2F2F2, #8C8C8C);
+    -fx-stroke: #4A4A4A;
+    -fx-stroke-width: 1.5;
+}
+
+/* ---------- Title ribbon ---------- */
+
+.title-ribbon {
+    -fx-background-color:
+        #1F4A12,
+        linear-gradient(to bottom, #8BD455, #4E9A2C);
+    -fx-background-insets: 0, 4;
+    -fx-background-radius: 18, 14;
+    -fx-padding: 8 34 10 34;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 8, 0.2, 0, 4);
+}
+
+.title-text {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 34px;
+    -fx-fill: white;
+    /* An outline drawn as a shadow: -fx-stroke on text costs a lot of frames over the moving mine. */
+    -fx-effect: dropshadow(one-pass-box, #1F4A12, 4, 1, 0, 0);
+}
+
+/* ---------- Text on the paper ---------- */
+
+.row-label {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 20px;
+    -fx-text-fill: #4A2E1A;
+}
+
+.hint {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 15px;
+    -fx-text-fill: #8A6E55;
+    -fx-text-alignment: center;
+    -fx-wrap-text: true;
+}
+
+.separator-line {
+    -fx-background-color: #D8CBAA;
+    -fx-min-height: 2;
+    -fx-max-height: 2;
+}
+
+/* ---------- Buttons ---------- */
+
+.game-button {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 18px;
+    -fx-text-fill: white;
+    -fx-background-radius: 14, 14, 11;
+    -fx-background-insets: 0, 0 0 5 0, 3 3 8 3;
+    -fx-padding: 8 22 13 22;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 4, 0, 0, 2);
+}
+
+.game-button:pressed {
+    -fx-background-insets: 0, 3 0 2 0, 6 3 5 3;
+    -fx-padding: 11 22 10 22;
+}
+
+.game-button.red {
+    -fx-background-color: #5E1410, #8E1F1F, linear-gradient(to bottom, #FF7A6B, #E0392C);
+}
+
+.game-button.red:hover {
+    -fx-background-color: #5E1410, #8E1F1F, linear-gradient(to bottom, #FF8F82, #EA4A3D);
+}
+
+.game-button.green {
+    -fx-background-color: #1F4A12, #2F6B1A, linear-gradient(to bottom, #8BD455, #4E9A2C);
+}
+
+.game-button.green:hover {
+    -fx-background-color: #1F4A12, #2F6B1A, linear-gradient(to bottom, #9BE065, #5AAA36);
+}
+
+.game-button.brown {
+    -fx-background-color: #3D2314, #6B4226, linear-gradient(to bottom, #C98A4B, #9A6232);
+}
+
+.game-button.brown:hover {
+    -fx-background-color: #3D2314, #6B4226, linear-gradient(to bottom, #D89A5A, #A86A35);
+}
+
+.close-button {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 22px;
+    -fx-text-fill: white;
+    -fx-background-color: #1F4A12, linear-gradient(to bottom, #8BD455, #4E9A2C);
+    -fx-background-insets: 0, 3;
+    -fx-background-radius: 50%;
+    -fx-min-width: 46;
+    -fx-min-height: 46;
+    -fx-max-width: 46;
+    -fx-max-height: 46;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 6, 0.2, 0, 3);
+}
+
+.close-button:hover {
+    -fx-background-color: #1F4A12, linear-gradient(to bottom, #9BE065, #5AAA36);
+}
+
+/* Greyed out when the player cannot pay. Each color is named, or its own rule would win. */
+.game-button.green:disabled,
+.game-button.red:disabled,
+.game-button.brown:disabled {
+    -fx-background-color: #5C5650, #7D766E, linear-gradient(to bottom, #B8B1A7, #9A938A);
+    -fx-text-fill: #EDE8E0;
+    -fx-opacity: 1;
+    -fx-cursor: default;
+    -fx-effect: null;
+}
+
+/* ---------- Manager shop ---------- */
+
+.portrait {
+    -fx-background-color: #F6EBD0;
+    -fx-background-radius: 14;
+    -fx-border-color: #9BA8B4;
+    -fx-border-width: 5;
+    -fx-border-radius: 14;
+    -fx-min-width: 76;
+    -fx-min-height: 76;
+    -fx-max-width: 76;
+    -fx-max-height: 76;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 4, 0, 0, 2);
+}
+
+.portrait:empty {
+    -fx-background-color: #D6D1C7;
+    -fx-border-color: #A8A29A;
+}
+
+.portrait-text {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 38px;
+    -fx-text-fill: #8F887B;
+}
+
+.rarity-badge {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 15px;
+    -fx-text-fill: white;
+    -fx-background-color: #9BA8B4;
+    -fx-background-radius: 999;
+    -fx-padding: 3 14 4 14;
+}
+
+.rarity-badge.big {
+    -fx-font-size: 26px;
+    -fx-padding: 6 26 8 26;
+}
+
+.bonus-text {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 18px;
+    -fx-text-fill: #4A2E1A;
+}
+
+.card-hint {
+    -fx-text-alignment: left;
+    -fx-alignment: center-left;
+}
+
+.odds-pill {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 13px;
+    -fx-text-fill: white;
+    -fx-background-radius: 999;
+    -fx-padding: 2 8 3 8;
+    -fx-min-width: 48;
+    -fx-alignment: center;
+}
+
+.odds-name {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 10px;
+    -fx-text-fill: #8A6E55;
+}
+
+/* ---------- Upgrade popup ---------- */
+
+.level-badge {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 30px;
+    -fx-text-fill: white;
+    -fx-background-color: #3D2314, linear-gradient(to bottom, #C98A4B, #9A6232);
+    -fx-background-insets: 0, 3;
+    -fx-background-radius: 999;
+    -fx-padding: 2 20 4 20;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 4, 0, 0, 2);
+}
+
+.level-target {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 30px;
+    -fx-text-fill: #3E8E22;
+}
+
+.float-text {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 26px;
+    -fx-fill: #5AAA36;
+    -fx-effect: dropshadow(one-pass-box, white, 4, 1, 0, 0);
+}
+
+.bottleneck-badge {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 13px;
+    -fx-text-fill: white;
+    -fx-background-color: linear-gradient(to bottom, #FFA53A, #E9711C);
+    -fx-background-radius: 999;
+    -fx-padding: 2 12 3 12;
+}
+
+.milestone-title {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 15px;
+    -fx-text-fill: #4A2E1A;
+}
+
+.milestone-reward {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 13px;
+    -fx-text-fill: #8A6E55;
+}
+
+.milestone-reward:unlocked {
+    -fx-text-fill: #D98A00;
+}
+
+.milestone-track {
+    -fx-background-color: #6B4226, #E3D7BA;
+    -fx-background-insets: 0, 2;
+    -fx-background-radius: 999;
+    -fx-padding: 3;
+    -fx-min-height: 22;
+    -fx-max-height: 22;
+}
+
+.milestone-track:unlocked {
+    -fx-effect: dropshadow(gaussian, #FFC93C, 16, 0.5, 0, 0);
+}
+
+.milestone-fill {
+    -fx-background-color: linear-gradient(to bottom, #8BD455, #4E9A2C);
+    -fx-background-radius: 999;
+}
+
+.milestone-ghost {
+    -fx-background-color: rgba(139, 212, 85, 0.45);
+    -fx-background-radius: 999;
+}
+
+.stats-box {
+    -fx-background-color: #D8CBAA, #F6EEDA;
+    -fx-background-insets: 0, 2;
+    -fx-background-radius: 12, 10;
+    -fx-padding: 8 12 8 12;
+}
+
+.stat-name {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 14px;
+    -fx-text-fill: #8A6E55;
+    -fx-min-width: 82;
+}
+
+.stat-value {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 17px;
+    -fx-text-fill: #4A2E1A;
+}
+
+.stat-arrow {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 15px;
+    -fx-text-fill: #8A6E55;
+}
+
+.stat-next {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 17px;
+    -fx-text-fill: #3E8E22;
+}
+
+.delta-pill {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 12px;
+    -fx-text-fill: white;
+    -fx-background-color: #5AAA36;
+    -fx-background-radius: 999;
+    -fx-padding: 1 8 2 8;
+}
+
+.output-row {
+    -fx-border-color: #D8CBAA transparent transparent transparent;
+    -fx-border-width: 2 0 0 0;
+    -fx-padding: 4 0 0 0;
+}
+
+.mode-switch {
+    -fx-background-color: #3D2314, #6B4226;
+    -fx-background-insets: 0, 2;
+    -fx-background-radius: 999;
+    -fx-padding: 4;
+    -fx-spacing: 4;
+}
+
+.mode-segment {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 16px;
+    -fx-text-fill: #F6EBD0;
+    -fx-background-color: transparent;
+    -fx-background-radius: 999;
+    -fx-padding: 4 18 5 18;
+    -fx-cursor: hand;
+}
+
+.mode-segment:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+}
+
+.mode-segment:selected {
+    -fx-text-fill: white;
+    -fx-background-color: #1F4A12, linear-gradient(to bottom, #8BD455, #4E9A2C);
+    -fx-background-insets: 0, 2;
+}
+
+/* The volume slider: a dark wooden groove and a round green knob, like the selected mode segment.
+   The groove keeps small radii: with 999, JavaFX draws it across the whole window. */
+.slider .track {
+    -fx-background-color: #3D2314, #6B4226;
+    -fx-background-insets: 0, 2;
+    -fx-background-radius: 6, 4;
+    -fx-pref-height: 12;
+}
+
+.slider .thumb {
+    -fx-background-color: #1F4A12, linear-gradient(to bottom, #8BD455, #4E9A2C);
+    -fx-background-insets: 0, 2;
+    -fx-background-radius: 999;
+    -fx-padding: 10;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 4, 0, 0, 2);
+}
+
+.slider .thumb:hover {
+    -fx-background-color: #1F4A12, linear-gradient(to bottom, #9BE065, #5AAA36);
+}
+
+.buy-button {
+    -fx-font-size: 22px;
+    -fx-padding: 10 30 15 30;
+}
+
+.buy-button:pressed {
+    -fx-padding: 13 30 12 30;
+}
+
+/* ---------- HUD ---------- */
+
+/* The coins and the income are two pills of the same size, side by side, each with its icon on the left. */
+.hud-pill {
+    -fx-background-insets: 0, 3;
+    -fx-background-radius: 999;
+    -fx-padding: 0 18 0 7;
+    -fx-min-width: 170;
+    -fx-min-height: 46;
+    -fx-pref-height: 46;
+    -fx-max-height: 46;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 8, 0.2, 0, 3);
+}
+
+.hud-coins {
+    -fx-background-color: #3D2314, linear-gradient(to bottom, #C98A4B, #9A6232);
+}
+
+.hud-rate {
+    -fx-background-color: #2E2E2E, linear-gradient(to bottom, #8A8A8A, #5C5C5C);
+}
+
+.hud-text {
+    -fx-font-family: 'Lilita One';
+    -fx-font-size: 24px;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.6), 2, 1, 0, 2);
+}
+
+/* Round button with the same height, frame, shadow and grey as the income pill, such as the settings gear. */
+.hud-round-button {
+    -fx-background-color: #2E2E2E, linear-gradient(to bottom, #8A8A8A, #5C5C5C);
+    -fx-background-insets: 0, 3;
+    -fx-background-radius: 999;
+    -fx-min-width: 46;
+    -fx-min-height: 46;
+    -fx-pref-width: 46;
+    -fx-pref-height: 46;
+    -fx-max-width: 46;
+    -fx-max-height: 46;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 8, 0.2, 0, 3);
+}
+
+.hud-round-button:hover {
+    -fx-background-color: #2E2E2E, linear-gradient(to bottom, #9A9A9A, #6A6A6A);
+}
+
+.hud-round-button:pressed {
+    -fx-background-color: #2E2E2E, linear-gradient(to bottom, #5C5C5C, #4A4A4A);
+}

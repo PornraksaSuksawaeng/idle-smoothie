@@ -27,3 +27,7 @@ save.json
 # Java
 *.class
 local.properties
+
+# Sprite tool inputs and previews (tools/sprites.py)
+art/raw/
+art/preview/
