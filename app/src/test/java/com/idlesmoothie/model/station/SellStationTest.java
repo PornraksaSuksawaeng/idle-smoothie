@@ -301,4 +301,18 @@ class SellStationTest {
         assertEquals(2, pulpies);
         assertEquals(station.getPulpieCount(), pulpies);
     }
+
+    @Test
+    void eachSaleIsCountedWithItsCoins() {
+        fillSurface(capacity());
+        SellStation station = new SellStation(surface, prices, wallet, config);
+        assertEquals(0, station.getSalesMade());
+        assertEquals(0, station.getLastSaleCoins(), DELTA);
+
+        station.start();
+        run(station, oneSale());
+
+        assertEquals(1, station.getSalesMade());
+        assertEquals(capacity() * UNIT_PRICE, station.getLastSaleCoins(), DELTA);
+    }
 }

@@ -2,9 +2,17 @@ package com.idlesmoothie.view;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.idlesmoothie.core.NumberNotation;
+
 class NumberFormatterTest {
+
+    @AfterEach
+    void backToSuffixes() {
+        NumberFormatter.setNotation(NumberNotation.SUFFIXES);
+    }
 
     @Test
     void smallNumbersAreWholeNumbers() {
@@ -42,5 +50,17 @@ class NumberFormatterTest {
         assertEquals("3", NumberFormatter.formatDecimal(3));
         assertEquals("0.25", NumberFormatter.formatDecimal(0.25));
         assertEquals("1.50K", NumberFormatter.formatDecimal(1_500));
+    }
+
+    @Test
+    void scientificNotationWritesAPowerOfTen() {
+        NumberFormatter.setNotation(NumberNotation.SCIENTIFIC);
+
+        assertEquals("999", NumberFormatter.format(999));
+        assertEquals("1.50e3", NumberFormatter.format(1_500));
+        assertEquals("7.89e18", NumberFormatter.format(7.89e18));
+        assertEquals("1.00e100", NumberFormatter.format(1e100));
+        assertEquals("1.00e4", NumberFormatter.format(9_999.9));
+        assertEquals("2.16", NumberFormatter.formatDecimal(2.16));
     }
 }
