@@ -71,7 +71,7 @@ public class ShopView implements Renderable {
     private final StackPane portrait = new StackPane();
     private final Label portraitText = new Label();
     private final ImageView portraitImage = new ImageView();
-    private final ManagerSprites managerSprites = new ManagerSprites(PORTRAIT_SPRITE_HEIGHT);
+    private final ManagerSprites managerSprites = ManagerSprites.of(PORTRAIT_SPRITE_HEIGHT);
     private final Label rarityBadge = new Label();
     private final Label bonusLabel = new Label();
     private final Label noManagerHint = hint(NO_MANAGER_HINT);
@@ -81,6 +81,14 @@ public class ShopView implements Renderable {
     private final VBox reveal;
     private final SequentialTransition pop;
     private Station selected;
+
+    /**
+     * Builds the manager portraits at the size the popup shows them, so the constructor finds them ready.
+     * Safe to call off the JavaFX thread.
+     */
+    public static void preloadSprites() {
+        ManagerSprites.of(PORTRAIT_SPRITE_HEIGHT);
+    }
 
     /**
      * Creates the popup, hidden until {@link #show(Station)} is called.

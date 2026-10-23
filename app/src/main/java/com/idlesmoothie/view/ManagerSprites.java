@@ -1,10 +1,9 @@
 package com.idlesmoothie.view;
 
 import com.idlesmoothie.model.manager.Rarity;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
@@ -26,10 +25,22 @@ public final class ManagerSprites {
     private static final double CELL_BODY_X = 128;
     private static final String PATH = "/images/managers/rarities.png";
     private static final String GHOST_PATH = "/images/managers/ghost.png";
+    private static final Map<Double, ManagerSprites> BY_HEIGHT = new ConcurrentHashMap<>();
 
     private final Map<Rarity, Image> sprites = new EnumMap<>(Rarity.class);
     private final Image ghost;
     private final double height;
+
+    /**
+     * Returns the sprites shown at this height, built the first time they are asked for and then shared,
+     * so the loading screen can build them before the game needs them.
+     *
+     * @param height height of one cell on screen, in pixels
+     * @return the shared sprites of this height
+     */
+    public static ManagerSprites of(double height) {
+        return BY_HEIGHT.computeIfAbsent(height, ManagerSprites::new);
+    }
 
     /**
      * Loads the sheet, scaled once to the size it is shown at.
@@ -125,10 +136,6 @@ public final class ManagerSprites {
      * @return the sheet scaled to {@code height} pixels high, or {@code null} if the file does not exist yet
      */
     private Image loadSheet(String path) {
-        try (InputStream stream = getClass().getResourceAsStream(path)) {
-            return stream == null ? null : new Image(stream, 0, height, true, true);
-        } catch (IOException e) {
-            return null;
-        }
+        return Assets.image(path, height);
     }
 }

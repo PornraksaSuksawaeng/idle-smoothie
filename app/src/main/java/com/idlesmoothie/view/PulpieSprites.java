@@ -1,10 +1,9 @@
 package com.idlesmoothie.view;
 
 import com.idlesmoothie.model.resource.Fruit;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
@@ -34,8 +33,21 @@ public final class PulpieSprites {
         IDLE
     }
 
+    private static final Map<Double, PulpieSprites> BY_SIZE = new ConcurrentHashMap<>();
+
     private final Map<Fruit, Map<Animation, Image[]>> sheets = new EnumMap<>(Fruit.class);
     private final double size;
+
+    /**
+     * Returns the sprites drawn at this size, built the first time they are asked for and then shared,
+     * so the loading screen can build them before the game needs them.
+     *
+     * @param size width and height of one frame on screen, in pixels
+     * @return the shared sprites of this size
+     */
+    public static PulpieSprites of(double size) {
+        return BY_SIZE.computeIfAbsent(size, PulpieSprites::new);
+    }
 
     /**
      * Loads every sheet that exists, scaled once to the size it is drawn at.
@@ -113,10 +125,6 @@ public final class PulpieSprites {
      * @return the sheet scaled to {@code size} pixels high, or {@code null} if the file does not exist yet
      */
     private Image loadSheet(String path) {
-        try (InputStream stream = getClass().getResourceAsStream(path)) {
-            return stream == null ? null : new Image(stream, 0, size, true, true);
-        } catch (IOException e) {
-            return null;
-        }
+        return Assets.image(path, size);
     }
 }
