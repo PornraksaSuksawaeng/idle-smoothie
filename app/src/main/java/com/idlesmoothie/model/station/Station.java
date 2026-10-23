@@ -350,6 +350,23 @@ public abstract class Station implements Upgradable {
         return Math.pow(growth, level - 1) * Math.pow(getMilestoneMultiplier(), milestonesReached(level));
     }
 
+    /**
+     * Same as {@link #levelBonus(double, int)}, but each level past {@code lateLevel} grows by {@code lateGrowth}.
+     *
+     * @param growth     the factor gained at each level up to {@code lateLevel}
+     * @param lateGrowth the factor gained at each level past {@code lateLevel}
+     * @param lateLevel  the last level that grows by {@code growth}
+     * @param level      the level to compute the bonus for
+     * @return the total capacity multiplier at that level
+     */
+    protected final double levelBonus(double growth, double lateGrowth, int lateLevel, int level) {
+        if (level <= lateLevel) {
+            return levelBonus(growth, level);
+        }
+        return levelBonus(growth, lateLevel) * Math.pow(lateGrowth, level - lateLevel)
+                * Math.pow(getMilestoneMultiplier(), milestonesReached(level) - milestonesReached(lateLevel));
+    }
+
     // Applies the manager's bonus to raw stats, if the station has a manager.
     private StationStats withManager(StationStats stats) {
         return manager == null ? stats : manager.apply(stats);

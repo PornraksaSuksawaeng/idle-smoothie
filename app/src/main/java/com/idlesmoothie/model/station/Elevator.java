@@ -110,7 +110,8 @@ public class Elevator extends Station {
     protected StationStats statsAt(int level) {
         return new StationStats(
                 config.getElevatorMoveSpeed() * (1 + config.getElevatorSpeedGrowth() * (level - 1)),
-                config.getElevatorBaseCapacity() * levelBonus(config.getStatGrowth(), level)
+                config.getElevatorBaseCapacity() * levelBonus(config.getStatGrowth(), config.getLateStatGrowth(),
+                        config.getLateGrowthLevel(), level)
         );
     }
 
