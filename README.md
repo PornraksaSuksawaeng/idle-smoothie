@@ -15,6 +15,12 @@
 
 </div>
 
+## Demo
+
+https://github.com/user-attachments/assets/239b487d-fb50-4722-a93e-225ac6f58722
+
+<sub>A run from the first floor: tapping the stations, upgrading, unlocking floors and hiring managers.</sub>
+
 ## The game
 
 Pulpies extract smoothie on 15 floors, in 5 fruit zones from strawberry to dragon fruit.
@@ -67,13 +73,6 @@ Coins buy upgrades, new floors behind each zone's barrier, and managers that run
 <img src="docs/readme/icons.png" width="228" alt="The coin, speed, settings and smoothie icons">
 
 </div>
-
-## Soundtrack
-
-<!-- Paste the video link that github.com gives you on the line below, alone on its line. -->
-SOUNDTRACK_VIDEO_LINK
-
-[Download the music (MP3)](app/src/main/resources/audio/music.mp3)
 
 ## How we built it
 
