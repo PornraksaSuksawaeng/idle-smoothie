@@ -4,13 +4,13 @@
 Reads   app/src/main/resources/images/...   (the game's assets)
         app/src/main/resources/audio/music.mp3
 Writes  docs/readme/mine.png                 the mine as a cross-section: the surface, then one room per fruit
-        docs/readme/zone_<fruit>_walk.gif    a Pulpie walking
+        docs/readme/zone_<fruit>_idle.gif    a Pulpie standing idle
         docs/readme/zone_<fruit>_crate.png   the full crate
         docs/readme/zone_<fruit>_soil.png    a square of the soil texture
         docs/readme/crate_empty.png
         docs/readme/manager_<rarity>.png     the five star fruit managers
         docs/readme/stations.png             the headframe, elevator cabin, bridge and bar at the same height
-        docs/readme/icons.png                every icon in images/ui/
+        docs/readme/icons.png                every icon in images/ui/, two per row
         art/preview/soundtrack.mp4           the music over a still of the loading screen, to upload on
                                              github.com (git ignores art/); built only if ffmpeg is found
 
@@ -52,6 +52,7 @@ TILE = 80            # one cell of the fruit zones table
 MANAGER_SIZE = 96
 STATION_HEIGHT = 110
 ICON_SIZE = 40
+IDLE_FRAME_MS = 250  # IDLE_FRAME_NANOS in MineView
 VIDEO_SIZE = (540, 960)
 
 # The game's layout, in game pixels (MineView), used to draw the mine like the game does
@@ -227,14 +228,14 @@ def draw_bridge(canvas, bridge, deck_left, deck_right, top):
 
 def zones():
     for fruit in FRUITS:
-        walk = load(f"pulpies/{fruit}/walk.png")
-        if walk is not None:
+        idle = load(f"pulpies/{fruit}/idle.png")
+        if idle is not None:
             frames = []
-            for frame in cells(walk):
+            for frame in cells(idle):
                 image = Image.new("RGBA", (CELL, CELL), SOIL)
                 image.alpha_composite(frame)
                 frames.append(rounded(scaled(image, TILE, TILE)).convert("RGBA"))
-            save_gif(frames, OUT / f"zone_{fruit}_walk.gif", 100)
+            save_gif(frames, OUT / f"zone_{fruit}_idle.gif", IDLE_FRAME_MS)
         crate = load(f"mine/crate_{fruit}.png")
         if crate is not None:
             rounded(tile(crate, TILE)).save(OUT / f"zone_{fruit}_crate.png", optimize=True)
@@ -282,7 +283,22 @@ def icons():
     for name in missing:
         print(f"missing, skipped: images/ui/{name}.png")
     parts = [scaled(Image.open(f).convert("RGBA"), height=ICON_SIZE) for f in files]
-    strip(parts, OUT / "icons.png", pad=10, gap=16)
+    grid(parts, OUT / "icons.png", columns=2, pad=10, gap=16)
+
+
+def grid(parts, path, columns, pad, gap):
+    """The parts in rows of `columns`, each one centered in a cell as big as the biggest part."""
+    if not parts:
+        return
+    width, height = max(part.width for part in parts), max(part.height for part in parts)
+    rows = -(-len(parts) // columns)
+    image = Image.new("RGBA", (2 * pad + columns * width + gap * (columns - 1),
+                               2 * pad + rows * height + gap * (rows - 1)), SOIL)
+    for index, part in enumerate(parts):
+        x = pad + (index % columns) * (width + gap) + (width - part.width) // 2
+        y = pad + (index // columns) * (height + gap) + (height - part.height) // 2
+        image.alpha_composite(part, (x, y))
+    rounded(image).save(path, optimize=True)
 
 
 def strip(parts, path, pad, gap):

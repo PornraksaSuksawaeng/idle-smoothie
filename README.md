@@ -43,7 +43,7 @@ Coins buy upgrades, new floors behind each zone's barrier, and managers that run
 
 | Strawberry | Blueberry | Kiwi | Mango | Dragon fruit |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/readme/zone_strawberry_walk.gif" width="80" alt="Strawberry Pulpie"> | <img src="docs/readme/zone_blueberry_walk.gif" width="80" alt="Blueberry Pulpie"> | <img src="docs/readme/zone_kiwi_walk.gif" width="80" alt="Kiwi Pulpie"> | <img src="docs/readme/zone_mango_walk.gif" width="80" alt="Mango Pulpie"> | <img src="docs/readme/zone_dragon_fruit_walk.gif" width="80" alt="Dragon fruit Pulpie"> |
+| <img src="docs/readme/zone_strawberry_idle.gif" width="80" alt="Strawberry Pulpie"> | <img src="docs/readme/zone_blueberry_idle.gif" width="80" alt="Blueberry Pulpie"> | <img src="docs/readme/zone_kiwi_idle.gif" width="80" alt="Kiwi Pulpie"> | <img src="docs/readme/zone_mango_idle.gif" width="80" alt="Mango Pulpie"> | <img src="docs/readme/zone_dragon_fruit_idle.gif" width="80" alt="Dragon fruit Pulpie"> |
 | <img src="docs/readme/zone_strawberry_crate.png" width="80" alt="Strawberry crate"> | <img src="docs/readme/zone_blueberry_crate.png" width="80" alt="Blueberry crate"> | <img src="docs/readme/zone_kiwi_crate.png" width="80" alt="Kiwi crate"> | <img src="docs/readme/zone_mango_crate.png" width="80" alt="Mango crate"> | <img src="docs/readme/zone_dragon_fruit_crate.png" width="80" alt="Dragon fruit crate"> |
 | <img src="docs/readme/zone_strawberry_soil.png" width="80" alt="Strawberry soil"> | <img src="docs/readme/zone_blueberry_soil.png" width="80" alt="Blueberry soil"> | <img src="docs/readme/zone_kiwi_soil.png" width="80" alt="Kiwi soil"> | <img src="docs/readme/zone_mango_soil.png" width="80" alt="Mango soil"> | <img src="docs/readme/zone_dragon_fruit_soil.png" width="80" alt="Dragon fruit soil"> |
 
@@ -70,7 +70,7 @@ Coins buy upgrades, new floors behind each zone's barrier, and managers that run
 
 <img src="docs/readme/stations.png" width="576" alt="The headframe, the elevator cabin, the bridge and the Smoothie Bar">
 
-<img src="docs/readme/icons.png" width="228" alt="The coin, speed, settings and smoothie icons">
+<img src="docs/readme/icons.png" width="116" alt="The coin, speed, settings and smoothie icons">
 
 </div>
 
