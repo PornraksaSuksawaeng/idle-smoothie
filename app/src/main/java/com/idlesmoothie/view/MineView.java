@@ -14,6 +14,7 @@ import com.idlesmoothie.model.creature.GoingToExtractorState;
 import com.idlesmoothie.model.creature.Pulpie;
 import com.idlesmoothie.model.creature.PulpieState;
 import com.idlesmoothie.model.manager.Manager;
+import com.idlesmoothie.model.manager.Rarity;
 import com.idlesmoothie.model.resource.Fruit;
 import com.idlesmoothie.model.station.Elevator;
 import com.idlesmoothie.model.station.Floor;
@@ -29,6 +30,7 @@ import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.RadialGradient;
 import javafx.scene.paint.Stop;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -126,6 +128,17 @@ public class MineView implements Renderable {
     private static final double GHOST_HIREABLE_OPACITY = 0.6;
     private static final double GHOST_FLOAT = 4;
     private static final double GHOST_FLOAT_PERIOD_SECONDS = 3.2;
+    // The glow of the rarity color behind a hired manager: its radius as a share of the manager height,
+    // its opacity in the middle, and a slow pulse. Legendary and mythic managers glow wider and stronger.
+    private static final double AURA_SIZE = 0.6;
+    private static final double AURA_STRONG_SIZE = 0.75;
+    private static final double AURA_OPACITY = 0.75;
+    private static final double AURA_STRONG_OPACITY = 0.95;
+    // The glow keeps most of its strength up to this share of its radius, around the manager, then fades out.
+    private static final double AURA_CORE = 0.5;
+    private static final double AURA_CORE_STRENGTH = 0.7;
+    private static final double AURA_PULSE = 0.08;
+    private static final double AURA_PERIOD_SECONDS = 2.4;
     private static final double CABIN_MARGIN = 8;
     private static final double CABIN_HEIGHT = 60;
     // Share of the shaft width that puts the guide clamps of the cabin image (at 26% and 74% of the cabin)
@@ -522,6 +535,8 @@ public class MineView implements Renderable {
             gc.setFill(EXTRACTOR_COLOR);
             gc.fillRect(getExtractorX(), boxY, BOX_SIZE, BOX_SIZE);
         }
+        // The glow of the manager goes behind the crate, the manager itself in front of it.
+        drawManagerAura(floor);
         drawCrate(floor, getGroundY(y));
 
         // The manager stands behind the Pulpies that come to deposit in front of it.
@@ -1208,6 +1223,9 @@ public class MineView implements Renderable {
             }
             return;
         }
+        if (!(station instanceof Floor)) {
+            drawManagerAura(station);
+        }
         if (managerSprites.isLoaded()) {
             managerSprites.draw(gc, manager.getRarity(), bodyX, groundY, breath(station));
             return;
@@ -1230,6 +1248,43 @@ public class MineView implements Renderable {
     private static double breath(Station station) {
         double seconds = System.nanoTime() / 1e9;
         return 1 + BREATH_AMPLITUDE * Math.sin(2 * Math.PI * (seconds / BREATH_PERIOD_SECONDS + phase(station)));
+    }
+
+    /**
+     * Draws the glow of the station manager, if it has one. On a floor, it is drawn before the crate,
+     * so the crate stays in front of it.
+     */
+    private void drawManagerAura(Station station) {
+        Manager manager = station.getManager();
+        if (manager == null) {
+            return;
+        }
+        Box area = getManagerArea(station);
+        drawAura(manager.getRarity(), area.x() + MANAGER_SPACE / 2, area.y() + area.height() - scrollY, station);
+    }
+
+    /**
+     * Draws a soft glow of the rarity color behind a manager, brighter in the middle and fading out.
+     * It stops at the ground under its feet, slowly pulses, and the rarest managers glow wider and stronger.
+     */
+    private void drawAura(Rarity rarity, double centerX, double groundY, Station station) {
+        double centerY = groundY - getManagerHeight() / 2;
+        double seconds = System.nanoTime() / 1e9;
+        double pulse = 1 + AURA_PULSE * Math.sin(2 * Math.PI * (seconds / AURA_PERIOD_SECONDS + phase(station)));
+        boolean rare = rarity.compareTo(Rarity.LEGENDARY) >= 0;
+        double radius = getManagerHeight() * (rare ? AURA_STRONG_SIZE : AURA_SIZE) * pulse;
+        Color color = Color.web(rarity.getColorHex());
+        double opacity = rare ? AURA_STRONG_OPACITY : AURA_OPACITY;
+        gc.setFill(new RadialGradient(0, 0, centerX, centerY, radius, false, CycleMethod.NO_CYCLE,
+                new Stop(0, color.deriveColor(0, 1, 1, opacity)),
+                new Stop(AURA_CORE, color.deriveColor(0, 1, 1, opacity * AURA_CORE_STRENGTH)),
+                new Stop(1, color.deriveColor(0, 1, 1, 0))));
+        gc.save();
+        gc.beginPath();
+        gc.rect(centerX - radius, centerY - radius, 2 * radius, groundY - (centerY - radius));
+        gc.clip();
+        gc.fillOval(centerX - radius, centerY - radius, 2 * radius, 2 * radius);
+        gc.restore();
     }
 
     /**
