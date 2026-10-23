@@ -28,6 +28,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -187,12 +188,17 @@ public class IdleSmoothieApp extends Application {
             SettingsView settingsView = new SettingsView(settings, this::applySettings, this::saveSettings,
                     this::resetProgress);
             Button settingsButton = createSettingsButton(settingsView);
+            ClickPulse clickPulse = new ClickPulse();
+            // A filter, so the pulse plays even when a button or a popup handles the click.
+            root.getScene().addEventFilter(MouseEvent.MOUSE_PRESSED,
+                    e -> clickPulse.play(e.getSceneX(), e.getSceneY()));
             StackPane.setAlignment(hudView.getRoot(), Pos.TOP_CENTER);
             StackPane.setMargin(hudView.getRoot(), new Insets(HUD_MARGIN));
             StackPane.setAlignment(settingsButton, Pos.TOP_RIGHT);
             StackPane.setMargin(settingsButton, new Insets(HUD_MARGIN));
             root.getChildren().addAll(0, List.of(mineView.getCanvas(), hudView.getRoot(), settingsButton,
-                    upgradePanel.getRoot(), shopView.getRoot(), settingsView.getRoot(), messageView.getRoot()));
+                    upgradePanel.getRoot(), shopView.getRoot(), settingsView.getRoot(), messageView.getRoot(),
+                    clickPulse.getRoot()));
             loop = new GameLoop(game, List.of(mineView, hudView, upgradePanel, shopView), this::save);
         } catch (RuntimeException e) {
             showError(loading, e);
