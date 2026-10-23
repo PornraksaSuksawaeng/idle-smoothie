@@ -87,7 +87,7 @@ SOUNDTRACK_VIDEO_LINK
   - Decorator: `PriceDecorator`
   - Memento: `GameSnapshot` and `SaveManager`
 - **Model and view apart:** `model` and `core` never import JavaFX.
-- **Tested class by class:** 358 JUnit tests, 98% coverage measured by JaCoCo.
+- **Tested class by class:** 361 JUnit tests, 98% coverage measured by JaCoCo.
 - **Git flow:** one branch per feature, pull requests into `dev`, `dev` into `main`, Conventional Commits.
 - **Build order:**
   1. A grey-box prototype of the floor, elevator and bar chain.
