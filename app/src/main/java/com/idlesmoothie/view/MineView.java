@@ -1,6 +1,5 @@
 package com.idlesmoothie.view;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -323,7 +322,7 @@ public class MineView implements Renderable {
         canvas.setOnScroll(e -> onScroll(e.getDeltaY()));
         canvas.setOnMouseClicked(e -> onClick(e.getX(), e.getY()));
 
-        this.surfaceImage = new Image(getClass().getResourceAsStream("/images/mine/surface.png"));
+        this.surfaceImage = loadImage("/images/mine/surface.png");
         this.soilImages = loadFruitImages("soil_");
         this.roomImages = loadFruitImages("room_");
         this.groundImage = loadImage("/images/mine/ground.png");
@@ -338,9 +337,19 @@ public class MineView implements Renderable {
         this.barImage = loadImage("/images/mine/bar.png");
         this.bridgeImage = loadImage("/images/mine/bridge.png");
         this.fullCrateImages = loadFruitImages("crate_");
-        this.pulpieSprites = new PulpieSprites(PULPIE_SPRITE_SIZE);
-        this.customerSprites = new PulpieSprites(CUSTOMER_SIZE);
-        this.managerSprites = new ManagerSprites(MANAGER_SPRITE_HEIGHT);
+        this.pulpieSprites = PulpieSprites.of(PULPIE_SPRITE_SIZE);
+        this.customerSprites = PulpieSprites.of(CUSTOMER_SIZE);
+        this.managerSprites = ManagerSprites.of(MANAGER_SPRITE_HEIGHT);
+    }
+
+    /**
+     * Builds the sprites of the Pulpies, the customers and the managers at the sizes the mine draws them,
+     * so the constructor finds them ready. Safe to call off the JavaFX thread.
+     */
+    public static void preloadSprites() {
+        PulpieSprites.of(PULPIE_SPRITE_SIZE);
+        PulpieSprites.of(CUSTOMER_SIZE);
+        ManagerSprites.of(MANAGER_SPRITE_HEIGHT);
     }
 
     /**
@@ -963,8 +972,7 @@ public class MineView implements Renderable {
      * @return the Lilita One font of the popups for the floor signs, or a bold system font if the file is missing
      */
     private static Font loadSignFont() {
-        InputStream stream = MineView.class.getResourceAsStream("/fonts/LilitaOne-Regular.ttf");
-        Font font = stream == null ? null : Font.loadFont(stream, SIGN_FONT_SIZE);
+        Font font = Assets.font("/fonts/LilitaOne-Regular.ttf", SIGN_FONT_SIZE);
         return font != null ? font : Font.font("System", FontWeight.BOLD, SIGN_FONT_SIZE);
     }
 
@@ -1384,12 +1392,11 @@ public class MineView implements Renderable {
     }
 
     /**
-     * Loads an image from the classpath.
+     * Gets an image of the classpath, read by the loading screen if it was preloaded.
      *
      * @return the image, or null if the file does not exist yet (the caller draws a placeholder)
      */
     private Image loadImage(String path) {
-        InputStream stream = getClass().getResourceAsStream(path);
-        return stream == null ? null : new Image(stream);
+        return Assets.image(path);
     }
 }

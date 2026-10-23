@@ -19,7 +19,7 @@ public class HudView implements Renderable {
     private static final double SPACING = 8;
     private static final double COIN_SIZE = 32;
     private static final double SPEED_SIZE = 30;
-    private static final Image SPEED_IMAGE = new Image(HudView.class.getResourceAsStream("/images/ui/speed.png"));
+    private static final Image SPEED_IMAGE = Assets.image("/images/ui/speed.png");
 
     private final Game game;
     private final Label coinsLabel = new Label();

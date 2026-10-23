@@ -11,7 +11,7 @@ import javafx.scene.image.ImageView;
 public final class CoinIcon {
 
     /** The icon image, loaded once and shared by every view. */
-    public static final Image IMAGE = new Image(CoinIcon.class.getResourceAsStream("/images/ui/coin.png"));
+    public static final Image IMAGE = Assets.image("/images/ui/coin.png");
 
     private CoinIcon() {
     }
