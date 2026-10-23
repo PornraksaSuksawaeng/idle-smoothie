@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.idlesmoothie.core.BalanceConfig;
 import com.idlesmoothie.core.Game;
+import com.idlesmoothie.core.Settings;
 import com.idlesmoothie.model.creature.CarryingState;
 import com.idlesmoothie.model.creature.DepositingState;
 import com.idlesmoothie.model.creature.FillingState;
@@ -284,6 +285,7 @@ public class MineView implements Renderable {
     private final UpgradePanel upgradePanel;
     private final ShopView shopView;
     private final MessageView messageView;
+    private final Settings settings;
     // The room images fill the canvas width, their left part hidden under the shaft,
     // so the floor sizes follow the canvas width.
     private final double floorHeight;
@@ -301,9 +303,10 @@ public class MineView implements Renderable {
      * @param upgradePanel popup opened by the "Lv" buttons
      * @param shopView     popup opened by a click on a manager or its ghost
      * @param messageView  popup telling why a barrier cannot be crossed yet
+     * @param settings     the player's preferences, read at every frame
      */
     public MineView(double width, double height, Game game, UpgradeController controller,
-            UpgradePanel upgradePanel, ShopView shopView, MessageView messageView) {
+            UpgradePanel upgradePanel, ShopView shopView, MessageView messageView, Settings settings) {
         this.canvas = new Canvas(width, height);
         double roomScale = width / ROOM_IMAGE_WIDTH;
         this.floorHeight = ROOM_IMAGE_FLOOR_END * roomScale;
@@ -316,6 +319,7 @@ public class MineView implements Renderable {
         this.upgradePanel = upgradePanel;
         this.shopView = shopView;
         this.messageView = messageView;
+        this.settings = settings;
         canvas.setOnScroll(e -> onScroll(e.getDeltaY()));
         canvas.setOnMouseClicked(e -> onClick(e.getX(), e.getY()));
 
@@ -1251,12 +1255,12 @@ public class MineView implements Renderable {
     }
 
     /**
-     * Draws the glow of the station manager, if it has one. On a floor, it is drawn before the crate,
-     * so the crate stays in front of it.
+     * Draws the glow of the station manager, if it has one and the glow is on in the settings.
+     * On a floor, it is drawn before the crate, so the crate stays in front of it.
      */
     private void drawManagerAura(Station station) {
         Manager manager = station.getManager();
-        if (manager == null) {
+        if (manager == null || !settings.isManagerAura()) {
             return;
         }
         Box area = getManagerArea(station);

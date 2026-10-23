@@ -8,6 +8,8 @@ import java.util.List;
 
 import com.idlesmoothie.core.Game;
 import com.idlesmoothie.core.SaveManager;
+import com.idlesmoothie.core.Settings;
+import com.idlesmoothie.core.SettingsManager;
 
 import javafx.animation.ScaleTransition;
 import javafx.application.Application;
@@ -34,6 +36,9 @@ public class IdleSmoothieApp extends Application {
     private static final Duration HOVER_DURATION = Duration.millis(150);
 
     private SaveManager saves;
+    private SettingsManager settingsFile;
+    private Settings settings;
+    private MusicPlayer music;
     private Game game;
 
     /**
@@ -53,14 +58,23 @@ public class IdleSmoothieApp extends Application {
         } catch (IOException | IllegalArgumentException e) {
             System.err.println("Could not load the save, starting a new game: " + e.getMessage());
         }
+        settingsFile = new SettingsManager(file.resolveSibling("settings.json"));
+        try {
+            settings = settingsFile.load();
+        } catch (IOException e) {
+            System.err.println("Could not load the settings, using the default ones: " + e.getMessage());
+            settings = new Settings();
+        }
+        NumberFormatter.setNotation(settings.getNotation());
 
         UpgradeController controller = new UpgradeController(game);
         UpgradePanel upgradePanel = new UpgradePanel(game, controller);
         ShopView shopView = new ShopView(game, controller);
         MessageView messageView = new MessageView();
-        MineView mineView = new MineView(540, 960, game, controller, upgradePanel, shopView, messageView);
+        MineView mineView = new MineView(540, 960, game, controller, upgradePanel, shopView, messageView, settings);
         HudView hudView = new HudView(game);
-        SettingsView settingsView = new SettingsView(this::resetProgress);
+        SettingsView settingsView = new SettingsView(settings, this::applySettings, this::saveSettings,
+                this::resetProgress);
         Button settingsButton = createSettingsButton(settingsView);
 
         StackPane root = new StackPane(mineView.getCanvas(), hudView.getRoot(), settingsButton,
@@ -76,6 +90,9 @@ public class IdleSmoothieApp extends Application {
         stage.setResizable(false);
         stage.show();
 
+        music = new MusicPlayer();
+        music.setVolume(settings.getMusicVolume());
+        music.setPlaying(settings.isMusic());
         new GameLoop(game, List.of(mineView, hudView, upgradePanel, shopView), this::save).start();
     }
 
@@ -92,6 +109,26 @@ public class IdleSmoothieApp extends Application {
             saves.save(game.createSnapshot());
         } catch (IOException e) {
             System.err.println("Could not save the game: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Applies the settings the player just changed.
+     */
+    private void applySettings() {
+        NumberFormatter.setNotation(settings.getNotation());
+        music.setVolume(settings.getMusicVolume());
+        music.setPlaying(settings.isMusic());
+    }
+
+    /**
+     * Writes the settings to their file, so they come back at the next launch.
+     */
+    private void saveSettings() {
+        try {
+            settingsFile.save(settings);
+        } catch (IOException e) {
+            System.err.println("Could not save the settings: " + e.getMessage());
         }
     }
 
