@@ -16,12 +16,15 @@ public final class BalanceConfig {
     private final double floorPriceGrowth = 20;
     private final double floorUpgradeCostRatio = 1.16;
     private final double statGrowth = 1.09;
+    private final double lateStatGrowth = 1.24;
+    private final int lateGrowthLevel = 250;
     private final double upgradeCostGrowth = 1.12;
     private final int maxLevel = 500;
     private final List<Integer> milestoneLevels = List.of(25, 50, 100, 250, 500);
     private final double milestoneMultiplier = 2.16;
     private final double elevatorMilestoneMultiplier = 3;
     private final int maxPulpies = 5;
+    private final double pulpieStartDelay = 0.4;
     private final double elevatorMoveSpeed = 1.0;
     private final double elevatorBaseCapacity = 50;
     private final double elevatorBaseCost = 75;
@@ -84,6 +87,26 @@ public final class BalanceConfig {
     }
 
     /**
+     * Returns the factor applied to the capacity of the elevator and of the sell station at each level
+     * past {@link #getLateGrowthLevel()}, so they keep up with all the floors of the end of the game.
+     *
+     * @return the growth, such as {@code 1.24} for +24% per level
+     */
+    public double getLateStatGrowth() {
+        return lateStatGrowth;
+    }
+
+    /**
+     * Returns the level from which the elevator and the sell station grow by {@link #getLateStatGrowth()}
+     * instead of {@link #getStatGrowth()}.
+     *
+     * @return the last level that still grows by the normal growth
+     */
+    public int getLateGrowthLevel() {
+        return lateGrowthLevel;
+    }
+
+    /**
      * @return the factor applied to the upgrade price at each level, such as {@code 1.15} for +15%
      */
     public double getUpgradeCostGrowth() {
@@ -132,6 +155,16 @@ public final class BalanceConfig {
     public int getMaxPulpies() {
         return maxPulpies;
     }
+    /**
+     * Returns the time between the departures of two Pulpies of the same floor, so they do not walk on top
+     * of each other.
+     *
+     * @return the delay in seconds
+     */
+    public double getPulpieStartDelay() {
+        return pulpieStartDelay;
+    }
+
     /**
      * @return the number of floors the elevator travels per second
      */

@@ -144,7 +144,8 @@ public class SellStation extends Station {
     protected StationStats statsAt(int level) {
         return new StationStats(
                 config.getSellSpeed(),
-                config.getSellBaseCapacity() * levelBonus(config.getStatGrowth(), level)
+                config.getSellBaseCapacity() * levelBonus(config.getStatGrowth(), config.getLateStatGrowth(),
+                        config.getLateGrowthLevel(), level)
         );
     }
 
