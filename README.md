@@ -15,6 +15,12 @@
 
 </div>
 
+## Demo
+
+https://github.com/user-attachments/assets/8ae56291-56bc-44b4-93d1-eb6e59712a87
+
+<sub>A run from the first floor: tapping the stations, upgrading, unlocking floors and hiring managers.</sub>
+
 ## The game
 
 Pulpies extract smoothie on 15 floors, in 5 fruit zones from strawberry to dragon fruit.
